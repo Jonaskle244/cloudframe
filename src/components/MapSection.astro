@@ -14,6 +14,13 @@
     <div class="map-layout">
       <div class="map-wrap" id="map-wrap">
         <svg id="location-map" role="img" aria-label="Karte mit Drohnen-Locations in Europa"></svg>
+        <!-- Sucher-Eckwinkel: rahmt den Viewport wie ein Kamera-HUD -->
+        <div class="map-hud" aria-hidden="true">
+          <span class="hud-corner hud-tl"></span>
+          <span class="hud-corner hud-tr"></span>
+          <span class="hud-corner hud-br"></span>
+          <span class="hud-corner hud-bl"></span>
+        </div>
         <div class="zoom-controls">
           <button class="zoom-btn" id="zoom-in" aria-label="Reinzoomen">+</button>
           <button class="zoom-btn" id="zoom-out" aria-label="Rauszoomen">−</button>
@@ -155,6 +162,15 @@
     const world = (await d3.json('/data/countries-110m.json')) as any;
     const countries = feature(world, world.objects.countries) as any;
 
+    // Graticule (feines Vermessungs-Gitter, liegt unter den Ländern →
+    // bleibt nur über Wasser sichtbar, passt zum Sucher/HUD-Look)
+    const graticule = d3.geoGraticule().step([10, 10]);
+    zoomGroup
+      .append('path')
+      .datum(graticule as any)
+      .attr('class', 'graticule')
+      .attr('d', path as any);
+
     zoomGroup
       .append('g')
       .attr('class', 'countries-layer')
@@ -178,21 +194,30 @@
       .style('cursor', 'pointer')
       .on('click', (_ev, d) => {
         showCard(d);
+        flyTo(d);
       });
 
-    pinGroups.append('circle').attr('class', 'pin-ring').attr('r', 10);
-    pinGroups.append('circle').attr('class', 'pin-dot').attr('r', 4);
+    // Sucher-Marker: pulsierender Halo, Eckrahmen (Bildmarke), Ring, Kern-Punkt
+    pinGroups.append('circle').attr('class', 'pin-halo').attr('r', 9);
+    pinGroups
+      .append('path')
+      .attr('class', 'pin-frame')
+      .attr('d', 'M-9 -5V-9H-5 M5 -9H9V-5 M9 5V9H5 M-5 9H-9V5');
+    pinGroups.append('circle').attr('class', 'pin-ring').attr('r', 6.5);
+    pinGroups.append('circle').attr('class', 'pin-dot').attr('r', 3.5);
     pinGroups
       .append('text')
       .attr('class', 'pin-label')
-      .attr('dy', 20)
+      .attr('dy', 22)
       .text((d) => d.name);
 
-    // D3 Zoom: Wheel deaktiviert, Drag-Pan aktiv
+    // D3 Zoom: Mausrad + Drag-Pan aktiv, Pan auf den Viewport begrenzt.
+    // Die Karte lebt in einer Fullscreen-View → Wheel kollidiert nicht mit Page-Scroll.
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, 8])
-      .filter((event) => event.type !== 'wheel')
+      .scaleExtent([1, 9])
+      .translateExtent([[0, 0], [W, H]])
+      .wheelDelta((event) => -event.deltaY * 0.0016) // sanfteres Mausrad
       .on('zoom', (event) => {
         const t = event.transform;
         zoomGroup.attr('transform', t.toString());
@@ -204,6 +229,20 @@
       });
 
     svg.call(zoom);
+
+    // Weiches Heranfahren an eine Location (zentrieren + zoomen)
+    function flyTo(loc: Location) {
+      const [px, py] = projection(loc.coords)!;
+      const k = 3.4;
+      const t = d3.zoomIdentity
+        .translate(W / 2 - k * px, H / 2 - k * py)
+        .scale(k);
+      svg
+        .transition()
+        .duration(720)
+        .ease(d3.easeCubicInOut)
+        .call(zoom.transform, t);
+    }
 
     // Zoom-Controls
     document.getElementById('zoom-in')!.addEventListener('click', () => {
@@ -244,22 +283,52 @@
 
 <!-- SVG-Klassen sind nicht scopebar → is:global mit Eltern-Scope -->
 <style is:global>
+  .map-section .graticule {
+    fill: none;
+    stroke: #c9d4e3;
+    stroke-width: 0.5px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
   .map-section .country {
-    fill: #e8e8eb;
-    stroke: #fff;
+    fill: #e7e9ef;
+    stroke: #f6f8fb;
     stroke-width: 0.8px;
+    transition: fill 0.2s ease;
+  }
+
+  /* ── Pin: Sucher-Marker ───────────────────────────────────── */
+  .map-section .pin-halo {
+    fill: var(--color-accent);
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .map-section .pin-frame {
+    fill: none;
+    stroke: var(--color-accent);
+    stroke-width: 1.6px;
+    stroke-linecap: round;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0.8);
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
 
   .map-section .pin-ring {
-    fill: none;
+    fill: #fff;
     stroke: var(--color-accent);
     stroke-width: 1.5px;
-    opacity: 0.3;
+    opacity: 0.85;
     transition: opacity 0.2s ease;
   }
 
   .map-section .pin-dot {
     fill: var(--color-accent);
+    transition: r 0.2s ease;
   }
 
   .map-section .pin-label {
@@ -268,22 +337,34 @@
     letter-spacing: 0.08em;
     text-anchor: middle;
     fill: var(--color-text-muted);
+    paint-order: stroke;
+    stroke: #fff;
+    stroke-width: 3px;
+    stroke-linejoin: round;
     pointer-events: none;
     user-select: none;
     opacity: 0;
     transition: opacity 0.2s ease;
   }
 
-  .map-section .pin-group.pin-active .pin-label {
-    opacity: 1;
+  /* Hover */
+  .map-section .pin-group:hover .pin-frame {
+    opacity: 0.55;
+    transform: scale(1);
   }
 
-  .map-section .pin-group:hover .pin-ring {
-    opacity: 0.7;
+  .map-section .pin-group:hover .pin-label {
+    opacity: 1;
   }
 
   .map-section .pin-group:hover .pin-dot {
     fill: #1d4ed8;
+  }
+
+  /* Aktiv */
+  .map-section .pin-group.pin-active .pin-frame {
+    opacity: 1;
+    transform: scale(1);
   }
 
   .map-section .pin-group.pin-active .pin-ring {
@@ -293,12 +374,29 @@
 
   .map-section .pin-group.pin-active .pin-dot {
     fill: #1d4ed8;
-    r: 5;
+    r: 4;
   }
 
   .map-section .pin-group.pin-active .pin-label {
+    opacity: 1;
     fill: var(--color-text);
     font-weight: 600;
+  }
+
+  .map-section .pin-group.pin-active .pin-halo {
+    animation: pinPulse 1.8s ease-out infinite;
+  }
+
+  @keyframes pinPulse {
+    0%   { opacity: 0.35; transform: scale(0.6); }
+    70%  { opacity: 0;    transform: scale(2.6); }
+    100% { opacity: 0;    transform: scale(2.6); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .map-section .pin-group.pin-active .pin-halo {
+      animation: none;
+    }
   }
 </style>
 
@@ -352,11 +450,60 @@
     flex: 1 1 auto;
     min-width: 0;
     aspect-ratio: 4 / 3;
-    background: #fff;
+    background:
+      radial-gradient(120% 100% at 50% 0%, #fbfcfe 0%, #f1f5fa 100%);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     overflow: hidden;
     position: relative;
+  }
+
+  /* ── HUD-Eckwinkel (Sucher-Rahmen) ────────────────────────── */
+  .map-hud {
+    position: absolute;
+    inset: 10px;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .hud-corner {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--color-accent);
+    opacity: 0.4;
+  }
+
+  .hud-tl {
+    top: 0;
+    left: 0;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 3px;
+  }
+
+  .hud-tr {
+    top: 0;
+    right: 0;
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 3px;
+  }
+
+  .hud-br {
+    bottom: 0;
+    right: 0;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 3px;
+  }
+
+  .hud-bl {
+    bottom: 0;
+    left: 0;
+    border-right: none;
+    border-top: none;
+    border-bottom-left-radius: 3px;
   }
 
   #location-map {
