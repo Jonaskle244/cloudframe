@@ -1,0 +1,159 @@
+---
+/**
+ * DroneFlyby
+ * ----------
+ * Ambientes Gimmick: dieselbe 3D-Drohne (geteiltes `lib/drone`-Modul) fliegt
+ * in größeren Abständen klein durchs Bild. Rendert NUR während eines Überflugs
+ * (rAF läuft sonst nicht → 0 GPU-Last im Leerlauf), pausiert bei verstecktem
+ * Tab und ist bei `prefers-reduced-motion` komplett aus.
+ */
+---
+
+<canvas class="drone-flyby" aria-hidden="true"></canvas>
+
+<style>
+  .drone-flyby {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 150; /* über den Views, unter Menü-Overlay (200) und Header (300) */
+    pointer-events: none;
+    opacity: 0.92;
+  }
+</style>
+
+<script>
+  import * as THREE from 'three';
+  import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+  import { CONFIG, buildDrone } from '../lib/drone';
+
+  const canvas = document.querySelector<HTMLCanvasElement>('.drone-flyby');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (canvas && !reduceMotion) {
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    camera.position.set(0, 0.6, 6);
+    camera.lookAt(0, 0, 0);
+
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    key.position.set(3, 5, 4);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0xbcd2ff, 0.8);
+    rim.position.set(-4, 2, -3);
+    scene.add(rim);
+
+    const { drone, propGroups } = buildDrone();
+    drone.scale.setScalar(0.32);
+    drone.visible = false;
+    scene.add(drone);
+
+    // Sichtbare Halbbreite auf der z=0-Ebene (für Off-Screen-Start/-Ziel)
+    let halfW = 4;
+    function resize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      const halfH = Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+      halfW = halfH * camera.aspect;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // ── Flugzustand ──────────────────────────────────────────
+    let flying = false;
+    let frame = 0;
+    let nextTimer = 0;
+    let t0 = 0;
+    let duration = 8;
+    let dir = 1; // +1 = links→rechts, -1 = rechts→links
+    let startX = 0;
+    let endX = 0;
+    let baseY = 0.8;
+    let altDir = 1; // wechselt die Richtung pro Überflug
+
+    const SPEED = 1.15; // Welt-Einheiten/Sekunde
+    const easeInOut = (p: number) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+    // Deterministische Pseudo-Streuung ohne Math.random (variiert pro Überflug)
+    let seed = 3;
+    const wobble = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280; // 0..1
+    };
+
+    function startFlyby() {
+      dir = altDir;
+      altDir *= -1;
+      const margin = 1.2;
+      startX = dir > 0 ? -(halfW + margin) : halfW + margin;
+      endX = -startX;
+      baseY = 0.35 + wobble() * 1.1; // obere Bildhälfte
+      duration = (Math.abs(endX - startX) / SPEED);
+
+      // Front (+z) entlang der Flugrichtung, leicht zur Kamera gedreht → 3/4-Ansicht
+      drone.rotation.set(0.12, dir > 0 ? Math.PI / 2 - 0.5 : -Math.PI / 2 + 0.5, dir * -0.08);
+      drone.visible = true;
+
+      flying = true;
+      t0 = performance.now();
+      if (!frame) loop();
+    }
+
+    function endFlyby() {
+      flying = false;
+      drone.visible = false;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      renderer.clear();
+      schedule(18000 + wobble() * 16000); // 18–34 s Pause
+    }
+
+    let lastFrame = 0;
+    function loop() {
+      frame = requestAnimationFrame(loop);
+      const now = performance.now();
+      const dt = Math.min((now - lastFrame) / 1000, 0.05);
+      lastFrame = now;
+
+      const p = Math.min((now - t0) / 1000 / duration, 1);
+      drone.position.x = startX + (endX - startX) * easeInOut(p);
+      drone.position.y = baseY + Math.sin(p * Math.PI * 6) * 0.06; // leichtes Wippen
+      for (const pr of propGroups) pr.rotation.y += dt * CONFIG.propSpin * 1.6 * pr.userData.dir;
+
+      renderer.render(scene, camera);
+      if (p >= 1) endFlyby();
+    }
+
+    function schedule(delay: number) {
+      clearTimeout(nextTimer);
+      nextTimer = window.setTimeout(() => {
+        if (document.visibilityState === 'visible') startFlyby();
+        else schedule(4000); // versteckt: später erneut versuchen
+      }, delay);
+    }
+
+    // Bei verstecktem Tab laufenden Überflug abbrechen, sonst weiter takten
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(nextTimer);
+        if (flying) endFlyby();
+      } else if (!flying) {
+        schedule(6000);
+      }
+    });
+
+    lastFrame = performance.now();
+    schedule(6000); // erster Überflug nach ~6 s
+  }
+</script>

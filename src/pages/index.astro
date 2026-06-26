@@ -4,6 +4,8 @@ import SiteNav from '../components/SiteNav.astro';
 import ScrollVideo from '../components/ScrollVideo.astro';
 import MapSection from '../components/MapSection.astro';
 import FilmsView from '../components/FilmsView.astro';
+import HardwareView from '../components/HardwareView.astro';
+import DroneFlyby from '../components/DroneFlyby.astro';
 ---
 
 <Layout>
@@ -51,7 +53,13 @@ import FilmsView from '../components/FilmsView.astro';
     <section class="view view--filme" data-view="filme">
       <FilmsView />
     </section>
+
+    <section class="view view--hardware" data-view="hardware">
+      <HardwareView />
+    </section>
   </main>
+
+  <DroneFlyby />
 </Layout>
 
 <style>

@@ -14,6 +14,7 @@ const entries = [
   { view: 'start', idx: '01', label: 'Start', preview: '/videos/soelden-berg-1080p-crf26.mp4' },
   { view: 'karte', idx: '02', label: 'Karte', preview: '/videos/oetz-talflug-1080p-crf26.mp4' },
   { view: 'filme', idx: '03', label: 'Filme', preview: '/videos/prag-tower-1080p-crf26.mp4' },
+  { view: 'hardware', idx: '04', label: 'Hardware', preview: '/videos/hero-desenberg-1080p-crf26.mp4' },
 ];
 ---
 
@@ -267,7 +268,7 @@ const entries = [
 </style>
 
 <script>
-  const VIEWS = ['start', 'karte', 'filme'] as const;
+  const VIEWS = ['start', 'karte', 'filme', 'hardware'] as const;
   type ViewName = (typeof VIEWS)[number];
 
   const isView = (v: string): v is ViewName =>
@@ -284,9 +285,11 @@ const entries = [
 
   let currentView: ViewName = 'start';
 
+  // Dunkle Views (Hero, Hardware) → heller Header; weiße Views → dunkler Header
+  const DARK_VIEWS: ViewName[] = ['start', 'hardware'];
   function applyHeaderTheme() {
     header.dataset.theme =
-      overlay.classList.contains('is-open') || currentView === 'start'
+      overlay.classList.contains('is-open') || DARK_VIEWS.includes(currentView)
         ? 'light'
         : 'dark';
   }
