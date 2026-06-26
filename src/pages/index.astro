@@ -1,0 +1,172 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SiteNav from '../components/SiteNav.astro';
+import ScrollVideo from '../components/ScrollVideo.astro';
+import MapSection from '../components/MapSection.astro';
+import FilmsView from '../components/FilmsView.astro';
+---
+
+<Layout>
+  <SiteNav />
+
+  <main>
+    <section class="view view--start is-active" data-view="start">
+      <ScrollVideo src="/videos/soelden-berg-1080p-crf26.mp4" scrollMultiplier={3} smoothing={0.12}>
+        <div class="hero-content">
+          <div class="hero-text">
+            <p class="kicker">Cloudframe</p>
+            <h1>Der Blick,<br />den kaum jemand kennt.</h1>
+            <p class="lead">
+              Deutschland und Europa — aus einer Perspektive,
+              die die meisten nie zu sehen kriegen.
+            </p>
+          </div>
+
+          <p class="scroll-hint" aria-hidden="true">↓</p>
+
+          <div class="video-meta" aria-hidden="true">
+            <span class="meta-item">
+              <span class="meta-label">LOC</span>
+              <span class="meta-value">Sölden, Tirol</span>
+            </span>
+            <span class="meta-divider"></span>
+            <span class="meta-item">
+              <span class="meta-label">ALT</span>
+              <span class="meta-value">~3.100 m NN</span>
+            </span>
+            <span class="meta-divider"></span>
+            <span class="meta-item">
+              <span class="meta-label">RES</span>
+              <span class="meta-value">4K · 30 FPS</span>
+            </span>
+          </div>
+        </div>
+      </ScrollVideo>
+    </section>
+
+    <section class="view view--karte" data-view="karte">
+      <MapSection />
+    </section>
+
+    <section class="view view--filme" data-view="filme">
+      <FilmsView />
+    </section>
+  </main>
+</Layout>
+
+<style>
+  main {
+    display: block;
+  }
+
+  /* App-View-Switching liegt global in global.css
+     (Astro entfernt diese Regeln aus dem gescopten <style>). */
+
+  /* ── Hero ───────────────────────────────────────────────── */
+  .hero-content {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'text text'
+      'scroll meta';
+    align-items: end;
+    padding: clamp(1.5rem, 4vw, 4rem);
+    padding-top: clamp(6rem, 15vh, 12rem);
+    color: #fff;
+  }
+
+  .hero-text {
+    grid-area: text;
+    max-width: 22ch;
+    text-shadow: 0 2px 32px rgba(0, 0, 0, 0.5);
+    text-align: left;
+  }
+
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    opacity: 0.65;
+    margin-bottom: 1.25rem;
+  }
+
+  .hero-text h1 {
+    margin-bottom: 1.25rem;
+    font-size: clamp(2rem, 4vw + 0.5rem, 4.5rem);
+  }
+
+  .lead {
+    font-size: clamp(0.9rem, 1vw + 0.5rem, 1.05rem);
+    line-height: 1.65;
+    opacity: 0.85;
+    max-width: 36ch;
+    text-shadow: 0 1px 16px rgba(0, 0, 0, 0.4);
+    margin-inline: 0;
+  }
+
+  .scroll-hint {
+    grid-area: scroll;
+    font-size: 1.25rem;
+    opacity: 0.5;
+    align-self: end;
+    animation: bob 2.4s ease-in-out infinite;
+  }
+
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(6px); }
+  }
+
+  /* ── Video-Meta-Badge ───────────────────────────────────── */
+  .video-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 0.5rem 0.85rem;
+    align-self: flex-end;
+  }
+
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    text-align: right;
+  }
+
+  .meta-label {
+    opacity: 0.5;
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+  }
+
+  .meta-value {
+    white-space: nowrap;
+    opacity: 0.95;
+  }
+
+  .meta-divider {
+    width: 1px;
+    height: 1.75rem;
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  @media (max-width: 480px) {
+    .video-meta {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,396 @@
+---
+/**
+ * SiteNav
+ * -------
+ * Fixer Minimal-Header (Wortmarke + Trigger) plus Fullscreen-Overlay-Menü.
+ * Das Menü schaltet zwischen den App-Views (Start / Karte / Filme) um —
+ * die Views selbst liegen in index.astro als `.view[data-view]`-Container.
+ *
+ * Beim Hovern eines Eintrags läuft sein Landscape-Clip stumm hinter der Typo.
+ */
+import BrandMark from './BrandMark.astro';
+
+const entries = [
+  { view: 'start', idx: '01', label: 'Start', preview: '/videos/soelden-berg-1080p-crf26.mp4' },
+  { view: 'karte', idx: '02', label: 'Karte', preview: '/videos/oetz-talflug-1080p-crf26.mp4' },
+  { view: 'filme', idx: '03', label: 'Filme', preview: '/videos/prag-tower-1080p-crf26.mp4' },
+];
+---
+
+<header class="site-header" data-theme="light">
+  <a class="brand" href="#start" data-goto="start" aria-label="Cloudframe — zur Startansicht">
+    <BrandMark class="brand__mark" />
+    <span class="brand__word">Cloudframe</span>
+  </a>
+
+  <button
+    class="menu-trigger"
+    type="button"
+    aria-controls="nav-overlay"
+    aria-expanded="false"
+  >
+    <span class="menu-trigger__label">Menü</span>
+    <span class="menu-trigger__icon" aria-hidden="true"><span></span><span></span></span>
+  </button>
+</header>
+
+<nav id="nav-overlay" class="nav-overlay" aria-label="Hauptmenü" aria-hidden="true">
+  <div class="nav-preview" aria-hidden="true">
+    {entries.map((e) => (
+      <video
+        class="nav-preview__video"
+        data-preview={e.view}
+        src={e.preview}
+        muted
+        loop
+        playsinline
+        preload="none"
+      />
+    ))}
+    <div class="nav-preview__scrim"></div>
+  </div>
+
+  <ul class="nav-list">
+    {entries.map((e) => (
+      <li>
+        <button class="nav-entry" type="button" data-goto={e.view}>
+          <span class="nav-entry__idx">{e.idx}</span>
+          <span class="nav-entry__label">{e.label}</span>
+        </button>
+      </li>
+    ))}
+  </ul>
+
+  <p class="nav-footer">Drohnenaufnahmen aus Deutschland &amp; Europa</p>
+</nav>
+
+<style>
+  /* ── Fixer Header ─────────────────────────────────────────── */
+  .site-header {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 300; /* über dem Overlay, damit der Trigger immer klickbar bleibt */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: clamp(1rem, 2.5vw, 1.75rem) clamp(1.25rem, 4vw, 4rem);
+    pointer-events: none; /* nur die Controls fangen Klicks */
+  }
+
+  .brand,
+  .menu-trigger {
+    pointer-events: auto;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .brand:hover {
+    opacity: 0.6;
+    text-decoration: none;
+  }
+
+  .brand__word {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+  }
+
+  .menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.25rem 0;
+  }
+
+  .menu-trigger__icon {
+    position: relative;
+    width: 22px;
+    height: 10px;
+  }
+
+  .menu-trigger__icon span {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 1.5px;
+    background: currentColor;
+    transition: transform 0.28s ease, opacity 0.2s ease;
+  }
+
+  .menu-trigger__icon span:nth-child(1) { top: 0; }
+  .menu-trigger__icon span:nth-child(2) { bottom: 0; }
+
+  .menu-trigger[aria-expanded='true'] .menu-trigger__icon span:nth-child(1) {
+    transform: translateY(4.25px) rotate(45deg);
+  }
+  .menu-trigger[aria-expanded='true'] .menu-trigger__icon span:nth-child(2) {
+    transform: translateY(-4.25px) rotate(-45deg);
+  }
+
+  /* Header-Theme: hell über dunklem Hero, dunkel über weißen Views */
+  .site-header[data-theme='light'] { color: #fff; }
+  .site-header[data-theme='dark'] { color: var(--color-text); }
+
+  /* ── Fullscreen-Overlay ───────────────────────────────────── */
+  .nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: #0b0b0c;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(5rem, 12vh, 9rem) clamp(1.25rem, 4vw, 4rem) clamp(2rem, 6vh, 4rem);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+  }
+
+  .nav-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* ── Hover-Preview hinter der Typo ────────────────────────── */
+  .nav-preview {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .nav-preview__video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+
+  .nav-preview__video.is-active {
+    opacity: 0.5;
+  }
+
+  .nav-preview__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(11, 11, 12, 0.4) 0%, rgba(11, 11, 12, 0.7) 100%);
+  }
+
+  /* ── Einträge ─────────────────────────────────────────────── */
+  .nav-list {
+    position: relative;
+    z-index: 2;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.1rem, 1vh, 0.75rem);
+  }
+
+  .nav-entry {
+    display: flex;
+    align-items: baseline;
+    gap: clamp(0.75rem, 2vw, 1.5rem);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    padding: 0.15em 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(2.75rem, 9vw, 6.5rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .nav-entry__idx {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    opacity: 0.5;
+    transform: translateY(-0.6em);
+  }
+
+  /* Beim Hovern eines Eintrags die anderen zurücknehmen */
+  .nav-list:hover .nav-entry { opacity: 0.4; }
+  .nav-list .nav-entry:hover {
+    opacity: 1;
+    transform: translateX(0.5rem);
+  }
+
+  .nav-entry[aria-current='page'] .nav-entry__label {
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 2px;
+  }
+
+  /* ── Footer ───────────────────────────────────────────────── */
+  .nav-footer {
+    position: relative;
+    z-index: 2;
+    margin-top: auto;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    max-width: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-overlay,
+    .nav-preview__video,
+    .nav-entry { transition: none; }
+  }
+</style>
+
+<script>
+  const VIEWS = ['start', 'karte', 'filme'] as const;
+  type ViewName = (typeof VIEWS)[number];
+
+  const isView = (v: string): v is ViewName =>
+    (VIEWS as readonly string[]).includes(v);
+
+  const header = document.querySelector('.site-header') as HTMLElement;
+  const overlay = document.getElementById('nav-overlay') as HTMLElement;
+  const trigger = document.querySelector('.menu-trigger') as HTMLButtonElement;
+  const gotos = Array.from(document.querySelectorAll<HTMLElement>('[data-goto]'));
+  const navEntries = Array.from(document.querySelectorAll<HTMLElement>('.nav-entry'));
+  const previews = Array.from(
+    document.querySelectorAll<HTMLVideoElement>('.nav-preview__video')
+  );
+
+  let currentView: ViewName = 'start';
+
+  function applyHeaderTheme() {
+    header.dataset.theme =
+      overlay.classList.contains('is-open') || currentView === 'start'
+        ? 'light'
+        : 'dark';
+  }
+
+  function hidePreviews() {
+    previews.forEach((v) => {
+      v.classList.remove('is-active');
+      v.pause();
+    });
+  }
+
+  function showPreview(name: string) {
+    previews.forEach((v) => {
+      if (v.dataset.preview === name) {
+        v.classList.add('is-active');
+        v.play().catch(() => {});
+      } else {
+        v.classList.remove('is-active');
+        v.pause();
+      }
+    });
+  }
+
+  function openMenu() {
+    overlay.classList.add('is-open');
+    overlay.setAttribute('aria-hidden', 'false');
+    trigger.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+    applyHeaderTheme();
+    navEntries[0]?.focus({ preventScroll: true });
+  }
+
+  function closeMenu() {
+    overlay.classList.remove('is-open');
+    overlay.setAttribute('aria-hidden', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+    hidePreviews();
+    applyHeaderTheme();
+  }
+
+  function setView(name: ViewName, opts: { updateHash?: boolean } = {}) {
+    const { updateHash = true } = opts;
+    currentView = name;
+
+    document.querySelectorAll<HTMLElement>('.view').forEach((el) => {
+      el.classList.toggle('is-active', el.dataset.view === name);
+    });
+
+    gotos.forEach((el) => {
+      if (el.classList.contains('nav-entry')) {
+        el.setAttribute('aria-current', el.dataset.goto === name ? 'page' : 'false');
+      }
+    });
+
+    applyHeaderTheme();
+    window.scrollTo(0, 0);
+    if (updateHash) history.replaceState(null, '', `#${name}`);
+
+    // Start: ScrollVideo neu vermessen lassen. Alle: Komponenten informieren.
+    if (name === 'start') window.dispatchEvent(new Event('resize'));
+    document.dispatchEvent(new CustomEvent('cloudframe:view', { detail: { view: name } }));
+  }
+
+  // Einträge + Wortmarke
+  gotos.forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const v = el.dataset.goto;
+      if (v && isView(v)) {
+        setView(v);
+        closeMenu();
+      }
+    });
+  });
+
+  // Hover-Previews
+  navEntries.forEach((el) => {
+    el.addEventListener('pointerenter', () => {
+      const v = el.dataset.goto;
+      if (v) showPreview(v);
+    });
+  });
+  document.querySelector('.nav-list')?.addEventListener('pointerleave', hidePreviews);
+
+  // Trigger / Esc
+  trigger.addEventListener('click', () => {
+    overlay.classList.contains('is-open') ? closeMenu() : openMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('is-open')) {
+      closeMenu();
+      trigger.focus({ preventScroll: true });
+    }
+  });
+
+  // Deep-Link / manuelle Hash-Änderung
+  const viewFromHash = (): ViewName => {
+    const h = location.hash.replace('#', '');
+    return isView(h) ? h : 'start';
+  };
+  window.addEventListener('hashchange', () =>
+    setView(viewFromHash(), { updateHash: false })
+  );
+
+  setView(viewFromHash(), { updateHash: false });
+</script>

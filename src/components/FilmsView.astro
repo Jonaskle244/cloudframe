@@ -1,0 +1,377 @@
+---
+import { films } from '../data/films';
+
+const first = films[0];
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<section class="films">
+  <div class="films-inner container">
+    <div class="films-header">
+      <p class="films-kicker">Cloudframe</p>
+      <h2>Filme</h2>
+      <p class="films-lead">Cinematische Drohnenflüge — in voller Breite.</p>
+    </div>
+
+    <div class="films-stage">
+      <div class="films-featured">
+        <div class="films-screen">
+          <video
+            id="film-player"
+            class="films-video"
+            src={first.src}
+            muted
+            loop
+            playsinline
+            preload="metadata"
+          ></video>
+
+          <button class="films-playpause" type="button" data-state="paused" aria-label="Abspielen oder pausieren">
+            <span class="ico ico--play" aria-hidden="true"></span>
+            <span class="ico ico--pause" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="films-meta">
+          <p class="films-meta__idx" id="film-idx">01</p>
+          <h3 class="films-meta__title" id="film-title">{first.title}</h3>
+          <p class="films-meta__region" id="film-region">{first.region}</p>
+          <div class="films-badges">
+            <span class="fbadge">
+              <span class="fbadge-label">ALT</span>
+              <span class="fbadge-value" id="film-alt">{first.altitude}</span>
+            </span>
+            <span class="fbadge">
+              <span class="fbadge-label">RES</span>
+              <span class="fbadge-value" id="film-res">{first.resolution}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <ul class="films-playlist">
+        {films.map((f, i) => (
+          <li>
+            <button
+              class="film-item"
+              type="button"
+              data-src={f.src}
+              data-title={f.title}
+              data-region={f.region}
+              data-alt={f.altitude}
+              data-res={f.resolution}
+              data-idx={pad(i + 1)}
+              aria-current={i === 0 ? 'true' : 'false'}
+            >
+              <span class="film-item__idx">{pad(i + 1)}</span>
+              <span class="film-item__text">
+                <span class="film-item__title">{f.title}</span>
+                <span class="film-item__region">{f.region}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  .films {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background: var(--color-bg);
+    padding: clamp(6rem, 14vh, 9rem) 0 clamp(3rem, 8vh, 5rem);
+  }
+
+  .films-inner {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 5vh, 3rem);
+    width: min(100% - 2rem, 1200px);
+  }
+
+  /* ── Header ───────────────────────────────────────────────── */
+  .films-header { max-width: 42ch; }
+
+  .films-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .films-header h2 {
+    margin-bottom: 0.75rem;
+    color: var(--color-text);
+  }
+
+  .films-lead {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+
+  /* ── Stage: Player + Playlist ─────────────────────────────── */
+  .films-stage {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+
+  .films-featured {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .films-screen {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .films-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .films-playpause {
+    position: absolute;
+    left: 14px;
+    bottom: 14px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .films-playpause:hover {
+    background: rgba(0, 0, 0, 0.6);
+    transform: scale(1.05);
+  }
+
+  .ico--play {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 7px 0 7px 12px;
+    border-color: transparent transparent transparent currentColor;
+    margin-left: 3px;
+  }
+
+  .ico--pause {
+    width: 12px;
+    height: 14px;
+    border-left: 4px solid currentColor;
+    border-right: 4px solid currentColor;
+    box-sizing: border-box;
+  }
+
+  .films-playpause[data-state='playing'] .ico--play { display: none; }
+  .films-playpause[data-state='paused'] .ico--pause { display: none; }
+
+  /* ── Featured-Meta ────────────────────────────────────────── */
+  .films-meta { padding-top: 1.25rem; }
+
+  .films-meta__idx {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .films-meta__title {
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    line-height: 1;
+    color: var(--color-text);
+    margin-bottom: 0.4rem;
+  }
+
+  .films-meta__region {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 1.25rem;
+  }
+
+  .films-badges { display: flex; gap: 0.6rem; }
+
+  .fbadge {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .fbadge-label {
+    font-family: var(--font-mono);
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .fbadge-value {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  /* ── Playlist ─────────────────────────────────────────────── */
+  .films-playlist {
+    flex: 0 0 clamp(220px, 24vw, 300px);
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .film-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    text-align: left;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 0.75rem 0.85rem;
+    cursor: pointer;
+    color: var(--color-text);
+    transition: background 0.18s ease, border-color 0.18s ease;
+  }
+
+  .film-item:hover { background: var(--color-surface); }
+
+  .film-item[aria-current='true'] {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+
+  .film-item__idx {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--color-text-muted);
+  }
+
+  .film-item[aria-current='true'] .film-item__idx { color: var(--color-accent); }
+
+  .film-item__text { display: flex; flex-direction: column; gap: 0.1rem; }
+
+  .film-item__title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.1;
+  }
+
+  .film-item__region {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .films-stage { flex-direction: column; }
+    .films-playlist {
+      flex: none;
+      width: 100%;
+      flex-direction: row;
+      overflow-x: auto;
+    }
+    .film-item { min-width: 180px; }
+  }
+</style>
+
+<script>
+  const player = document.getElementById('film-player') as HTMLVideoElement;
+  const ppBtn = document.querySelector('.films-playpause') as HTMLButtonElement;
+  const items = Array.from(document.querySelectorAll<HTMLButtonElement>('.film-item'));
+  const idxEl = document.getElementById('film-idx') as HTMLElement;
+  const titleEl = document.getElementById('film-title') as HTMLElement;
+  const regionEl = document.getElementById('film-region') as HTMLElement;
+  const altEl = document.getElementById('film-alt') as HTMLElement;
+  const resEl = document.getElementById('film-res') as HTMLElement;
+
+  const setState = (playing: boolean) => {
+    ppBtn.dataset.state = playing ? 'playing' : 'paused';
+  };
+
+  // Direkt nach einem src-Wechsel oder beim ersten Anzeigen stehen noch keine
+  // Frames bereit → play() wird abgewiesen. Dann einmalig auf 'canplay' warten
+  // und erneut versuchen, damit der Featured-Clip zuverlässig anläuft.
+  function tryPlay() {
+    player.play().then(() => setState(true)).catch(() => {
+      setState(false);
+      player.addEventListener(
+        'canplay',
+        () => player.play().then(() => setState(true)).catch(() => {}),
+        { once: true }
+      );
+    });
+  }
+
+  function selectFilm(btn: HTMLButtonElement, autoplay = true) {
+    const d = btn.dataset;
+    if (d.src && player.getAttribute('src') !== d.src) {
+      player.src = d.src; // Setzen von src löst bereits ein Laden aus — kein load() nötig
+    }
+    idxEl.textContent = d.idx ?? '';
+    titleEl.textContent = d.title ?? '';
+    regionEl.textContent = d.region ?? '';
+    altEl.textContent = d.alt ?? '';
+    resEl.textContent = d.res ?? '';
+    items.forEach((it) => it.setAttribute('aria-current', it === btn ? 'true' : 'false'));
+    if (autoplay) tryPlay();
+  }
+
+  items.forEach((btn) => btn.addEventListener('click', () => selectFilm(btn, true)));
+
+  ppBtn.addEventListener('click', () => {
+    if (player.paused) player.play().then(() => setState(true)).catch(() => {});
+    else { player.pause(); setState(false); }
+  });
+
+  player.addEventListener('play', () => setState(true));
+  player.addEventListener('pause', () => setState(false));
+
+  // Play/Pause an den aktiven View koppeln
+  document.addEventListener('cloudframe:view', (e) => {
+    const view = (e as CustomEvent<{ view: string }>).detail?.view;
+    if (view === 'filme') tryPlay();
+    else { player.pause(); setState(false); }
+  });
+
+  // Deep-Link direkt auf #filme: das initiale cloudframe:view-Event von SiteNav
+  // kann feuern, bevor dieser Listener steht. Darum hier nachziehen.
+  if (document.querySelector('.view--filme.is-active')) tryPlay();
+</script>

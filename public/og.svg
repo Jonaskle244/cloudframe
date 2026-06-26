@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .wordmark {
+        font: 700 70px 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        fill: #fafafa;
+        letter-spacing: -1.5px;
+      }
+      .tagline {
+        font: 400 21px 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        fill: #71717a;
+      }
+      .badge-label {
+        font: 600 9px 'Menlo', 'Courier New', monospace;
+        letter-spacing: 2px;
+        fill: #52525b;
+      }
+      .badge-value {
+        font: 400 13px 'Menlo', 'Courier New', monospace;
+        fill: #a1a1aa;
+      }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#09090b"/>
+
+  <!-- Corner brackets (viewfinder style, echo the BrandMark) -->
+  <g fill="none" stroke="#27272a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="miter">
+    <path d="M 60 135 L 60 60 L 135 60"/>
+    <path d="M 1065 60 L 1140 60 L 1140 135"/>
+    <path d="M 135 570 L 60 570 L 60 495"/>
+    <path d="M 1065 495 L 1140 495 L 1140 570"/>
+  </g>
+
+  <!--
+    BrandMark: Sucher-Eckwinkel + Gipfellinie
+    Original viewBox 0 0 24 24 → scale(4) = 96×96px
+    Centered at (600, 210): translate(600-48, 210-48) = translate(552, 162)
+  -->
+  <g transform="translate(552,162) scale(4)" fill="none" stroke="#fafafa" stroke-width="1.7" stroke-linecap="round">
+    <path d="M3 8V3h5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5" stroke-linejoin="miter"/>
+    <path d="M6 16l3.5-4.5 2.5 3 3-4 3 5.5" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Wordmark (baseline y=330) -->
+  <text x="600" y="330" text-anchor="middle" class="wordmark">Cloudframe</text>
+
+  <!-- Tagline (baseline y=373) -->
+  <text x="600" y="373" text-anchor="middle" class="tagline">Cinematische Drohnenaufnahmen aus der Luft.</text>
+
+  <!--
+    Badges: 4 × (96px wide + 12px gap) = 420px total
+    Centered: start x = (1200 - 420) / 2 = 390
+  -->
+  <g>
+    <!-- Badge ALT -->
+    <rect x="390" y="445" width="96" height="46" rx="5" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+    <text x="403" y="462" class="badge-label">ALT</text>
+    <text x="403" y="480" class="badge-value">3.100 m</text>
+
+    <!-- Badge RES -->
+    <rect x="498" y="445" width="96" height="46" rx="5" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+    <text x="511" y="462" class="badge-label">RES</text>
+    <text x="511" y="480" class="badge-value">4K UHD</text>
+
+    <!-- Badge REG -->
+    <rect x="606" y="445" width="96" height="46" rx="5" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+    <text x="619" y="462" class="badge-label">REG</text>
+    <text x="619" y="480" class="badge-value">Europa</text>
+
+    <!-- Badge FMT -->
+    <rect x="714" y="445" width="96" height="46" rx="5" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+    <text x="727" y="462" class="badge-label">FMT</text>
+    <text x="727" y="480" class="badge-value">Drohne</text>
+  </g>
+</svg>

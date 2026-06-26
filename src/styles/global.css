@@ -1,0 +1,116 @@
+/* ---------- Design Tokens ---------- */
+:root {
+  --font-sans: 'Syne', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+  --color-bg: #ffffff;
+  --color-surface: #f4f4f5;
+  --color-text: #111111;
+  --color-text-muted: #71717a;
+  --color-accent: #2563eb;
+  --color-border: #e4e4e7;
+}
+
+/* ---------- Reset & Basics ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: auto; /* WICHTIG: smooth-scroll bricht Scroll-Scrubbing */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  line-height: 1.6;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img,
+video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 4vw + 1rem, 5.5rem);
+}
+
+h2 {
+  font-size: clamp(1.75rem, 2vw + 1rem, 3rem);
+}
+
+p {
+  max-width: 60ch;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Utilities ---------- */
+.container {
+  width: min(100% - 2rem, 1200px);
+  margin-inline: auto;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- App-Views (clientseitiges View-Switching) ---------- */
+/* Global statt scoped: Astro entfernt diese .view-Regeln aus dem
+   komponenten-gescopten <style>, weil die is-active-Klasse erst zur
+   Laufzeit per JS gesetzt wird. */
+.view:not(.is-active) {
+  display: none;
+}
+
+.view--karte.is-active,
+.view--filme.is-active {
+  animation: viewIn 0.45s ease both;
+}
+
+@keyframes viewIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

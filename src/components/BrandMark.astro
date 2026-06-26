@@ -1,0 +1,40 @@
+---
+/**
+ * BrandMark
+ * ---------
+ * Cloudframe-Bildmarke: Sucher-Eckwinkel mit feiner Gipfellinie.
+ * Greift die HUD-Sprache der Mono-Badges auf. `stroke: currentColor`
+ * lässt die Marke der Header-Theme-Farbe folgen (hell über Hero, dunkel
+ * über den weißen Views).
+ */
+interface Props {
+  class?: string;
+  size?: string | number;
+}
+const { class: className, size = '1.05rem' } = Astro.props;
+---
+
+<svg
+  class={className}
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.7"
+  aria-hidden="true"
+  focusable="false"
+>
+  <!-- Sucher-Eckwinkel -->
+  <path
+    d="M3 8V3h5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5"
+    stroke-linecap="round"
+    stroke-linejoin="miter"
+  ></path>
+  <!-- Gipfel-/Horizontlinie -->
+  <path
+    d="M6 16l3.5-4.5 2.5 3 3-4 3 5.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  ></path>
+</svg>

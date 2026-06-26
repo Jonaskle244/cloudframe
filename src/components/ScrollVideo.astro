@@ -1,0 +1,268 @@
+---
+/**
+ * ScrollVideo
+ * -----------
+ * Ein Video, dessen Wiedergabeposition (currentTime) an die Scroll-Position
+ * gekoppelt ist. Das Video wird fixiert dargestellt; der äußere Section-Block
+ * definiert über seine Höhe, wie lang die Scroll-Strecke ist.
+ *
+ * Tipps für das Video selbst (für sauberes Scrubbing):
+ *   ffmpeg -i input.mp4 \
+ *     -movflags +faststart \
+ *     -vcodec libx264 -crf 20 -preset slow \
+ *     -x264opts "keyint=1:min-keyint=1:no-scenecut" \
+ *     -an output.mp4
+ *   (Jedes Frame ist ein Keyframe -> exaktes seeking, kein Ruckeln.)
+ */
+
+interface Props {
+  /** Pfad zum Video innerhalb von /public (z. B. "/videos/hero.mp4") */
+  src: string;
+  /** MIME-Type des Videos. Falls weggelassen, wird er anhand der Dateiendung erraten. */
+  type?: string;
+  /** Optional: Poster-Bild, das vor dem Laden angezeigt wird */
+  poster?: string;
+  /**
+   * Wie viele "Bildschirmhöhen" das Video Scroll-Strecke einnehmen soll.
+   * 3 = du musst 3x Viewport-Höhe scrollen, um durch das Video zu kommen.
+   */
+  scrollMultiplier?: number;
+  /** Glättungsfaktor 0–1 (höher = direkter, niedriger = sanfter). */
+  smoothing?: number;
+}
+
+const {
+  src,
+  type,
+  poster,
+  scrollMultiplier = 3,
+  smoothing = 0.12,
+} = Astro.props;
+
+/**
+ * Heuristik für gängige Container.
+ * Achtung: für `.mov` bewusst kein type — Chrome/Firefox filtern
+ * `video/quicktime` teils als "nicht abspielbar" aus, obwohl der enthaltene
+ * H.264-Stream problemlos ginge. Ohne type probiert der Browser einfach.
+ */
+function guessMime(path: string): string | undefined {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  switch (ext) {
+    case 'mp4':
+    case 'm4v':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'ogv':
+      return 'video/ogg';
+    case 'mov':
+    default:
+      return undefined;
+  }
+}
+
+const mimeType = type ?? guessMime(src);
+---
+
+<section
+  class="scroll-video"
+  style={`--scroll-multiplier: ${scrollMultiplier};`}
+  data-smoothing={smoothing}
+>
+  <div class="scroll-video__sticky">
+    <video
+      class="scroll-video__media"
+      poster={poster}
+      muted
+      playsinline
+      preload="auto"
+      disablepictureinpicture
+      aria-hidden="true"
+    >
+      <source src={src} {...(mimeType ? { type: mimeType } : {})} />
+    </video>
+
+    <div class="scroll-video__overlay">
+      <slot />
+    </div>
+  </div>
+</section>
+
+<style>
+  .scroll-video {
+    position: relative;
+    width: 100%;
+    /* Gesamthöhe = scrollMultiplier × Viewport-Höhe. */
+    height: calc(var(--scroll-multiplier, 3) * 100vh);
+    background-color: #000;
+  }
+
+  .scroll-video__sticky {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .scroll-video__media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* GPU-Layer erzwingen für smootheres Repainting */
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  .scroll-video__overlay {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: stretch;
+    pointer-events: none;
+  }
+
+  /* Wenn der User Reduced Motion bevorzugt: einfaches Standbild + Auto-Play deaktiviert */
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-video {
+      height: 100vh;
+    }
+  }
+</style>
+
+<script>
+  /**
+   * Scroll → currentTime Binding mit linearer Interpolation (lerp)
+   * für ein "buttery" Gefühl statt direktem Sprung.
+   */
+  type Controller = {
+    el: HTMLElement;
+    video: HTMLVideoElement;
+    smoothing: number;
+    target: number;
+    current: number;
+    duration: number;
+    ready: boolean;
+  };
+
+  const controllers: Controller[] = [];
+  let rafId: number | null = null;
+  let lastTimestamp = 0;
+
+  function init() {
+    const sections = document.querySelectorAll<HTMLElement>('.scroll-video');
+    sections.forEach((el) => {
+      const video = el.querySelector<HTMLVideoElement>('.scroll-video__media');
+      if (!video) return;
+
+      const smoothing = parseFloat(el.dataset.smoothing ?? '0.12');
+
+      const controller: Controller = {
+        el,
+        video,
+        smoothing: Math.min(1, Math.max(0.01, smoothing)),
+        target: 0,
+        current: 0,
+        duration: 0,
+        ready: false,
+      };
+
+      const onLoaded = () => {
+        controller.duration = isFinite(video.duration) ? video.duration : 0;
+        controller.ready = controller.duration > 0;
+        // Erstes Frame zeichnen
+        try {
+          video.currentTime = 0;
+        } catch {
+          /* ignore */
+        }
+      };
+
+      if (video.readyState >= 1) {
+        onLoaded();
+      } else {
+        video.addEventListener('loadedmetadata', onLoaded, { once: true });
+      }
+
+      controllers.push(controller);
+    });
+
+    if (controllers.length === 0) return;
+
+    // Scroll & Resize triggern nur Re-Computation des Targets,
+    // das eigentliche Setzen passiert im rAF-Loop.
+    const updateTargets = () => {
+      for (const c of controllers) {
+        if (!c.ready) continue;
+        const rect = c.el.getBoundingClientRect();
+        const viewport = window.innerHeight;
+        const total = c.el.offsetHeight - viewport;
+        if (total <= 0) {
+          c.target = 0;
+          continue;
+        }
+        // Wie weit sind wir im Scroll-Bereich der Section?
+        const scrolled = Math.min(total, Math.max(0, -rect.top));
+        const progress = scrolled / total; // 0 .. 1
+        c.target = progress * c.duration;
+      }
+      if (rafId === null) rafId = requestAnimationFrame(loop);
+    };
+
+    const loop = (timestamp: number) => {
+      // Normalize delta to 60 fps so smoothing is display-independent.
+      const delta = lastTimestamp === 0 ? 1 : Math.min((timestamp - lastTimestamp) / (1000 / 60), 4);
+      lastTimestamp = timestamp;
+
+      let stillAnimating = false;
+      for (const c of controllers) {
+        if (!c.ready) continue;
+        const diff = c.target - c.current;
+        if (Math.abs(diff) > 0.001) {
+          c.current += diff * c.smoothing * delta;
+          stillAnimating = true;
+        } else {
+          c.current = c.target;
+        }
+        // Safari/iOS mögen es nicht, wenn man currentTime zu oft setzt.
+        // Wir setzen nur, wenn sich der gerundete Frame-Wert verändert hat.
+        const next = c.current;
+        if (Math.abs(c.video.currentTime - next) > 0.01) {
+          try {
+            c.video.currentTime = next;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      if (stillAnimating) {
+        rafId = requestAnimationFrame(loop);
+      } else {
+        rafId = null;
+        lastTimestamp = 0;
+      }
+    };
+
+    const onScroll = () => updateTargets();
+    const onResize = () => updateTargets();
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize, { passive: true });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) updateTargets();
+    });
+
+    // Initialer Tick
+    updateTargets();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+</script>

@@ -1,0 +1,26 @@
+{
+  "name": "cloudframe",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^5.7.0",
+    "d3": "^7.9.0",
+    "three": "^0.184.0",
+    "topojson-client": "^3.1.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@types/d3": "^7.4.3",
+    "@types/three": "^0.184.1",
+    "@types/topojson-client": "^3.1.5",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,544 @@
+---
+// MapSection.astro — Interaktive Locations-Karte
+---
+
+<section class="map-section">
+  <div class="map-inner container">
+
+    <div class="map-header">
+      <p class="map-kicker">Cloudframe</p>
+      <h2>Alle Locations</h2>
+      <p class="map-lead">Von den Alpen bis zur Ägäis — und immer weiter.</p>
+    </div>
+
+    <div class="map-layout">
+      <div class="map-wrap" id="map-wrap">
+        <svg id="location-map" role="img" aria-label="Karte mit Drohnen-Locations in Europa"></svg>
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoom-in" aria-label="Reinzoomen">+</button>
+          <button class="zoom-btn" id="zoom-out" aria-label="Rauszoomen">−</button>
+          <button class="zoom-btn zoom-reset" id="zoom-reset" aria-label="Ansicht zurücksetzen">↺</button>
+        </div>
+      </div>
+
+      <aside class="location-card">
+        <div id="card-empty" class="card-empty">
+          <p class="card-hint">← Location wählen</p>
+        </div>
+
+        <div id="card-filled" class="card-filled" style="display:none">
+          <!-- Portrait-Media (Video oder Bild), full-bleed oben in der Karte -->
+          <div id="card-media" class="card-media" style="display:none">
+            <video id="card-video" class="card-media-el" muted playsinline loop style="display:none"></video>
+            <img id="card-img" class="card-media-el" alt="" style="display:none" />
+          </div>
+
+          <!-- Textinfos -->
+          <div class="card-info">
+            <p class="card-idx" id="card-idx">01</p>
+            <h3 class="card-name" id="card-name">—</h3>
+            <p class="card-region" id="card-region">—</p>
+            <div class="card-badges">
+              <span class="cbadge">
+                <span class="cbadge-label">ALT</span>
+                <span class="cbadge-value" id="card-alt">—</span>
+              </span>
+              <span class="cbadge" id="card-res-wrap" style="display:none">
+                <span class="cbadge-label">RES</span>
+                <span class="cbadge-value" id="card-res">—</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  import * as d3 from 'd3';
+  import { feature } from 'topojson-client';
+  import { locations } from '../data/locations';
+  import type { Location } from '../data/locations';
+
+  const cardVideoEl = document.getElementById('card-video') as HTMLVideoElement;
+  const cardImgEl  = document.getElementById('card-img')   as HTMLImageElement;
+  const cardMediaEl = document.getElementById('card-media') as HTMLElement;
+  const cardResWrap = document.getElementById('card-res-wrap') as HTMLElement;
+  const cardResEl   = document.getElementById('card-res')   as HTMLElement;
+
+  function showCard(loc: Location) {
+    const empty  = document.getElementById('card-empty')!;
+    const filled = document.getElementById('card-filled')!;
+
+    (document.getElementById('card-idx')    as HTMLElement).textContent =
+      String(loc.index).padStart(2, '0');
+    (document.getElementById('card-name')   as HTMLElement).textContent = loc.name;
+    (document.getElementById('card-region') as HTMLElement).textContent = loc.region;
+    (document.getElementById('card-alt')    as HTMLElement).textContent = loc.altitude;
+
+    // Resolution-Badge nur bei Videos
+    if (loc.resolution) {
+      cardResEl.textContent    = loc.resolution;
+      cardResWrap.style.display = '';
+    } else {
+      cardResWrap.style.display = 'none';
+    }
+
+    // Portrait-Media inline
+    if (loc.portraitVideo) {
+      if (cardVideoEl.getAttribute('src') !== loc.portraitVideo) {
+        cardVideoEl.src = loc.portraitVideo;
+        cardVideoEl.load();
+      }
+      cardVideoEl.style.display = 'block';
+      cardImgEl.style.display   = 'none';
+      cardMediaEl.style.display = 'block';
+      cardVideoEl.play().catch(() => {});
+    } else if (loc.portraitImage) {
+      cardImgEl.src             = loc.portraitImage;
+      cardImgEl.style.display   = 'block';
+      cardVideoEl.pause();
+      cardVideoEl.removeAttribute('src');
+      cardVideoEl.style.display = 'none';
+      cardMediaEl.style.display = 'block';
+    } else {
+      cardVideoEl.pause();
+      cardVideoEl.removeAttribute('src');
+      cardMediaEl.style.display = 'none';
+    }
+
+    empty.style.display  = 'none';
+    filled.style.display = 'flex';
+
+    d3.selectAll<SVGGElement, Location>('.pin-group').classed(
+      'pin-active',
+      (d) => d.id === loc.id
+    );
+
+  }
+
+  async function initMap() {
+    const mapWrap = document.getElementById('map-wrap')!;
+    const W = mapWrap.clientWidth;
+    const H = mapWrap.clientHeight;
+
+    const svg = d3
+      .select<SVGSVGElement, unknown>('#location-map')
+      .attr('viewBox', `0 0 ${W} ${H}`)
+      .attr('width', W)
+      .attr('height', H);
+
+    const lonSpan = 58 * (Math.PI / 180);
+    const latSpanMercator = 1.147;
+    const padW = W - 48;
+    const padH = H - 32;
+    const scale = Math.min(padW / lonSpan, padH / latSpanMercator);
+
+    const centerLon = (-13 + 45) / 2;
+    const midMercY = (Math.log(Math.tan(Math.PI / 4 + (33 * Math.PI) / 360)) +
+                      Math.log(Math.tan(Math.PI / 4 + (70 * Math.PI) / 360))) / 2;
+    const centerLat = (2 * Math.atan(Math.exp(midMercY)) - Math.PI / 2) * (180 / Math.PI);
+
+    const projection = d3
+      .geoMercator()
+      .center([centerLon, centerLat])
+      .scale(scale)
+      .translate([W / 2, H / 2]);
+
+    const path = d3.geoPath().projection(projection);
+
+    // Zoom-Gruppe — alle Layer landen darin
+    const zoomGroup = svg.append('g').attr('class', 'zoom-group');
+
+    const world = (await d3.json('/data/countries-110m.json')) as any;
+    const countries = feature(world, world.objects.countries) as any;
+
+    zoomGroup
+      .append('g')
+      .attr('class', 'countries-layer')
+      .selectAll<SVGPathElement, unknown>('path')
+      .data(countries.features)
+      .join('path')
+      .attr('class', 'country')
+      .attr('d', path as any);
+
+    const pinLayer = zoomGroup.append('g').attr('class', 'pins-layer');
+
+    const pinGroups = pinLayer
+      .selectAll<SVGGElement, Location>('g')
+      .data(locations)
+      .join('g')
+      .attr('class', 'pin-group')
+      .attr('transform', (d) => {
+        const [x, y] = projection(d.coords)!;
+        return `translate(${x},${y})`;
+      })
+      .style('cursor', 'pointer')
+      .on('click', (_ev, d) => {
+        showCard(d);
+      });
+
+    pinGroups.append('circle').attr('class', 'pin-ring').attr('r', 10);
+    pinGroups.append('circle').attr('class', 'pin-dot').attr('r', 4);
+    pinGroups
+      .append('text')
+      .attr('class', 'pin-label')
+      .attr('dy', 20)
+      .text((d) => d.name);
+
+    // D3 Zoom: Wheel deaktiviert, Drag-Pan aktiv
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([1, 8])
+      .filter((event) => event.type !== 'wheel')
+      .on('zoom', (event) => {
+        const t = event.transform;
+        zoomGroup.attr('transform', t.toString());
+        // Pins konstant groß halten
+        pinGroups.attr('transform', (d) => {
+          const [x, y] = projection(d.coords)!;
+          return `translate(${x},${y}) scale(${1 / t.k})`;
+        });
+      });
+
+    svg.call(zoom);
+
+    // Zoom-Controls
+    document.getElementById('zoom-in')!.addEventListener('click', () => {
+      svg.transition().duration(280).call(zoom.scaleBy, 1.6);
+    });
+    document.getElementById('zoom-out')!.addEventListener('click', () => {
+      svg.transition().duration(280).call(zoom.scaleBy, 1 / 1.6);
+    });
+    document.getElementById('zoom-reset')!.addEventListener('click', () => {
+      svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+    });
+  }
+
+  // Die Karte liegt anfangs in einem versteckten View (display:none) → clientWidth = 0.
+  // Erst initialisieren, wenn der Karte-View sichtbar wird, sonst rendert das SVG 0×0.
+  let mapInitialized = false;
+  function tryInit() {
+    if (mapInitialized) return;
+    const wrap = document.getElementById('map-wrap');
+    if (!wrap || wrap.clientWidth === 0) return;
+    mapInitialized = true;
+    initMap();
+  }
+
+  const wrapEl = document.getElementById('map-wrap');
+  if (wrapEl) {
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((en) => en.isIntersecting)) tryInit();
+    });
+    io.observe(wrapEl);
+  }
+  document.addEventListener('cloudframe:view', (e) => {
+    const view = (e as CustomEvent<{ view: string }>).detail?.view;
+    if (view === 'karte') tryInit();
+  });
+  tryInit();
+</script>
+
+<!-- SVG-Klassen sind nicht scopebar → is:global mit Eltern-Scope -->
+<style is:global>
+  .map-section .country {
+    fill: #e8e8eb;
+    stroke: #fff;
+    stroke-width: 0.8px;
+  }
+
+  .map-section .pin-ring {
+    fill: none;
+    stroke: var(--color-accent);
+    stroke-width: 1.5px;
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+  }
+
+  .map-section .pin-dot {
+    fill: var(--color-accent);
+  }
+
+  .map-section .pin-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-anchor: middle;
+    fill: var(--color-text-muted);
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .map-section .pin-group.pin-active .pin-label {
+    opacity: 1;
+  }
+
+  .map-section .pin-group:hover .pin-ring {
+    opacity: 0.7;
+  }
+
+  .map-section .pin-group:hover .pin-dot {
+    fill: #1d4ed8;
+  }
+
+  .map-section .pin-group.pin-active .pin-ring {
+    opacity: 1;
+    stroke-width: 2px;
+  }
+
+  .map-section .pin-group.pin-active .pin-dot {
+    fill: #1d4ed8;
+    r: 5;
+  }
+
+  .map-section .pin-group.pin-active .pin-label {
+    fill: var(--color-text);
+    font-weight: 600;
+  }
+</style>
+
+<style>
+  /* ── Section ──────────────────────────────────────────────── */
+  .map-section {
+    background: var(--color-bg);
+    padding-block: 6rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .map-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  /* ── Header ───────────────────────────────────────────────── */
+  .map-header {
+    max-width: 42ch;
+  }
+
+  .map-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .map-header h2 {
+    margin-bottom: 0.75rem;
+    color: var(--color-text);
+  }
+
+  .map-lead {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    max-width: 44ch;
+  }
+
+  /* ── Layout: Karte + Card ─────────────────────────────────── */
+  .map-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+
+  .map-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    aspect-ratio: 4 / 3;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #location-map {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+  }
+
+  #location-map:active {
+    cursor: grabbing;
+  }
+
+  /* ── Zoom Controls ────────────────────────────────────────── */
+  .zoom-controls {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+  }
+
+  .zoom-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--color-text);
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.15s ease, color 0.15s ease;
+    padding: 0;
+  }
+
+  .zoom-btn:hover {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+  }
+
+  .zoom-reset {
+    font-size: 0.75rem;
+  }
+
+  /* ── Detail Card ──────────────────────────────────────────── */
+  .location-card {
+    flex: 0 0 260px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    background: var(--color-surface);
+    min-height: 200px;
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    overflow: hidden; /* clippt das full-bleed Portrait-Media */
+  }
+
+  .card-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-hint {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    max-width: unset;
+  }
+
+  .card-filled {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ── Portrait-Media (full-bleed oben) ─────────────────────── */
+  .card-media {
+    /* Negativer Margin bricht aus dem Card-Padding heraus */
+    margin: -1.5rem -1.5rem 0 -1.5rem;
+    aspect-ratio: 9 / 16;
+    overflow: hidden;
+    background: #111;
+    flex-shrink: 0;
+  }
+
+  .card-media-el {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* ── Card-Textinfos ───────────────────────────────────────── */
+  .card-info {
+    padding-top: 1.25rem;
+  }
+
+  .card-idx {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.65rem;
+    max-width: unset;
+  }
+
+  .card-name {
+    font-size: clamp(2rem, 3.5vw, 3.2rem);
+    line-height: 1;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+  }
+
+  .card-region {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 1.5rem;
+    max-width: unset;
+  }
+
+  .card-badges {
+    display: flex;
+    gap: 0.6rem;
+    margin-bottom: 0;
+  }
+
+  .cbadge {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .cbadge-label {
+    font-family: var(--font-mono);
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .cbadge-value {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .map-layout {
+      flex-direction: column;
+    }
+
+    .map-wrap {
+      aspect-ratio: 4 / 3;
+      width: 100%;
+    }
+
+    .location-card {
+      flex: none;
+      width: 100%;
+    }
+  }
+</style>

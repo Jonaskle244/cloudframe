@@ -1,0 +1,53 @@
+---
+// Temporäre Vorschau-Seite zum Iterieren am 3D-Drohnen-Viewer.
+// Wird nach Abnahme in die App-Views integriert und wieder entfernt.
+import Layout from '../layouts/Layout.astro';
+import DroneViewer from '../components/DroneViewer.astro';
+---
+
+<Layout title="Cloudframe · Hardware (Preview)">
+  <main class="hw">
+    <div class="hw__inner">
+      <header class="hw__header">
+        <p class="hw__kicker">Cloudframe</p>
+        <h1>Die Hardware</h1>
+        <p class="hw__lead">Das Fluggerät hinter den Aufnahmen — interaktiv in 3D.</p>
+      </header>
+
+      <DroneViewer />
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .hw {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background: #09090b;
+    color: #fafafa;
+    padding: clamp(3rem, 8vh, 6rem) 1.5rem;
+  }
+  .hw__inner {
+    width: min(100% - 1rem, 1100px);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .hw__header { max-width: 44ch; }
+  .hw__kicker {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #71717a;
+    margin-bottom: 0.75rem;
+  }
+  .hw__header h1 {
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    line-height: 1;
+    margin-bottom: 0.75rem;
+  }
+  .hw__lead { color: #a1a1aa; font-size: 1rem; }
+</style>
