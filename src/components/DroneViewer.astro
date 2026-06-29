@@ -2,10 +2,11 @@
 /**
  * DroneViewer
  * -----------
- * Interaktive Three.js-Visualisierung der Drohne. Prozedural aus Geometrien
- * gebaut (kein externes Modell), PBR-Materialien + RoomEnvironment-Reflexionen,
- * OrbitControls mit Auto-Rotate. Parametrisch über CONFIG im Script unten —
- * Farben/Proportionen/Spin lassen sich dort zentral anpassen.
+ * Inszeniertes Standbild der echten Drohne (freigestelltes Foto). Schwebt
+ * mittig auf dem dunklen HUD, sanfte Idle-Hover-Animation, Kontaktschatten
+ * und ein dezenter Pointer-Parallax geben Tiefe. Der Sucher-Rahmen greift
+ * die Bildmarke auf. Kein Three.js mehr — das prozedurale Modell lebt nur
+ * noch im Flyby-Gimmick weiter.
  */
 interface Props {
   class?: string;
@@ -14,7 +15,25 @@ const { class: className } = Astro.props;
 ---
 
 <div class:list={['drone-viewer', className]} data-drone-viewer>
-  <canvas class="drone-viewer__canvas"></canvas>
+  <span class="drone-viewer__glow" aria-hidden="true"></span>
+
+  <div class="drone-viewer__scene">
+    <span class="drone-viewer__shadow" aria-hidden="true"></span>
+    <div class="drone-viewer__float">
+      <picture>
+        <source srcset="/hardware/drone.webp" type="image/webp" />
+        <img
+          class="drone-viewer__img"
+          src="/hardware/drone.png"
+          width="922"
+          height="590"
+          loading="lazy"
+          decoding="async"
+          alt="Die Cloudframe-Drohne, freigestellt auf dunklem Hintergrund"
+        />
+      </picture>
+    </div>
+  </div>
 
   <!-- HUD-Rahmen: greift die Sucher-Ecken der Bildmarke auf -->
   <span class="drone-viewer__bracket drone-viewer__bracket--tl" aria-hidden="true"></span>
@@ -23,7 +42,7 @@ const { class: className } = Astro.props;
   <span class="drone-viewer__bracket drone-viewer__bracket--br" aria-hidden="true"></span>
 
   <p class="drone-viewer__label">Cloudframe · Hardware</p>
-  <p class="drone-viewer__hint">Ziehen zum Drehen · Scrollen zum Zoomen</p>
+  <p class="drone-viewer__hint">Bewegen für Perspektive</p>
 </div>
 
 <style>
@@ -36,16 +55,69 @@ const { class: className } = Astro.props;
     border: 1px solid var(--color-border, #27272a);
     border-radius: 14px;
     overflow: hidden;
+    perspective: 1200px;
   }
 
-  .drone-viewer__canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    cursor: grab;
-    touch-action: none;
+  /* weicher Lichtkegel hinter der Drohne */
+  .drone-viewer__glow {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(46% 42% at 50% 46%, rgba(122, 152, 205, 0.2), rgba(122, 152, 205, 0) 70%);
+    pointer-events: none;
   }
-  .drone-viewer__canvas:active { cursor: grabbing; }
+
+  .drone-viewer__scene {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    transform-style: preserve-3d;
+    transform:
+      rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))
+      translate3d(var(--tx, 0px), var(--ty, 0px), 0);
+    transition: transform 0.25s ease-out;
+    will-change: transform;
+  }
+
+  .drone-viewer__float {
+    display: grid;
+    place-items: center;
+    animation: drone-bob 7s ease-in-out infinite;
+  }
+
+  .drone-viewer__img {
+    display: block;
+    width: 72%;
+    max-width: 560px;
+    height: auto;
+    filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
+  }
+
+  /* Kontaktschatten – schrumpft, wenn die Drohne „steigt" */
+  .drone-viewer__shadow {
+    position: absolute;
+    left: 50%;
+    top: 66%;
+    width: 44%;
+    height: 7%;
+    transform: translateX(-50%);
+    background:
+      radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 72%);
+    filter: blur(7px);
+    pointer-events: none;
+    animation: drone-shadow 7s ease-in-out infinite;
+  }
+
+  @keyframes drone-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-14px); }
+  }
+
+  @keyframes drone-shadow {
+    0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+    50%      { opacity: 0.4;  transform: translateX(-50%) scale(0.9); }
+  }
 
   /* HUD-Eckwinkel */
   .drone-viewer__bracket {
@@ -86,126 +158,51 @@ const { class: className } = Astro.props;
 
   @media (max-width: 600px) {
     .drone-viewer__hint { display: none; }
+    .drone-viewer__img { width: 82%; }
+  }
+
+  /* Bewegungsarm: kein Schweben, kein Parallax */
+  @media (prefers-reduced-motion: reduce) {
+    .drone-viewer__float,
+    .drone-viewer__shadow { animation: none; }
+    .drone-viewer__scene { transition: none; }
   }
 </style>
 
 <script>
-  import * as THREE from 'three';
-  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-  import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-  import { CONFIG, buildDrone } from '../lib/drone';
+  function initViewer(viewer: HTMLElement) {
+    const scene = viewer.querySelector<HTMLElement>('.drone-viewer__scene');
+    if (!scene) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  function initViewer(container: HTMLElement) {
-    const canvas = container.querySelector<HTMLCanvasElement>('.drone-viewer__canvas');
-    if (!canvas) return;
+    let raf = 0;
+    let tx = 0, ty = 0, rx = 0, ry = 0;
 
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-
-    const scene = new THREE.Scene();
-
-    // Realistische Reflexionen ohne externe HDRI-Datei
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
-    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
-    camera.position.set(2.4, 1.55, 3.0);
-
-    // Licht
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
-    key.position.set(4, 6, 4);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    key.shadow.camera.near = 1;
-    key.shadow.camera.far = 20;
-    key.shadow.camera.left = -4;
-    key.shadow.camera.right = 4;
-    key.shadow.camera.top = 4;
-    key.shadow.camera.bottom = -4;
-    key.shadow.bias = -0.0006;
-    scene.add(key);
-
-    const fill = new THREE.DirectionalLight(0x88aaff, 0.5);
-    fill.position.set(-5, 2, -3);
-    scene.add(fill);
-
-    const rim = new THREE.DirectionalLight(0xffffff, 0.7);
-    rim.position.set(0, 3, -6);
-    scene.add(rim);
-
-    // Schatten-Fänger (unsichtbarer Boden)
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(40, 40),
-      new THREE.ShadowMaterial({ opacity: 0.4 }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.56;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    const { drone, propGroups } = buildDrone();
-    scene.add(drone);
-
-    const controls = new OrbitControls(camera, canvas);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minDistance = 2.4;
-    controls.maxDistance = 8;
-    controls.maxPolarAngle = Math.PI * 0.54;
-    controls.enablePan = false;
-    controls.autoRotate = !reduceMotion;
-    controls.autoRotateSpeed = 0.9;
-    controls.target.set(0, 0, 0);
-
-    // Größe an Container koppeln
-    function resize() {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (!w || !h) return;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+    function apply() {
+      raf = 0;
+      scene!.style.setProperty('--tx', tx.toFixed(1) + 'px');
+      scene!.style.setProperty('--ty', ty.toFixed(1) + 'px');
+      scene!.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+      scene!.style.setProperty('--ry', ry.toFixed(2) + 'deg');
     }
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(container);
-
-    // Render-Loop nur wenn sichtbar
-    let last = performance.now();
-    let frame = 0;
-    function loop() {
-      frame = requestAnimationFrame(loop);
-      const now = performance.now();
-      const dt = Math.min((now - last) / 1000, 0.1); // Sprung nach Pause begrenzen
-      last = now;
-      if (!reduceMotion) {
-        for (const p of propGroups) p.rotation.y += dt * CONFIG.propSpin * p.userData.dir;
-      }
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    function start() {
-      if (!frame) {
-        last = performance.now();
-        loop();
-      }
-    }
-    function stop() {
-      cancelAnimationFrame(frame);
-      frame = 0;
+    function schedule() {
+      if (!raf) raf = requestAnimationFrame(apply);
     }
 
-    const io = new IntersectionObserver(
-      ([entry]) => (entry.isIntersecting ? start() : stop()),
-      { threshold: 0.05 },
-    );
-    io.observe(container);
+    viewer.addEventListener('pointermove', (e) => {
+      const r = viewer.getBoundingClientRect();
+      const nx = (e.clientX - r.left) / r.width - 0.5;
+      const ny = (e.clientY - r.top) / r.height - 0.5;
+      tx = nx * 20;
+      ty = ny * 14;
+      ry = nx * 7;
+      rx = -ny * 6;
+      schedule();
+    });
+    viewer.addEventListener('pointerleave', () => {
+      tx = ty = rx = ry = 0;
+      schedule();
+    });
   }
 
   document.querySelectorAll<HTMLElement>('[data-drone-viewer]').forEach(initViewer);

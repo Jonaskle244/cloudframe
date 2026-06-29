@@ -1,25 +1,29 @@
 /**
  * hardware.ts
  * -----------
- * Technisches Datenblatt für die Hardware-View. Bewusst auf das beschränkt,
- * was die Aufnahmen tatsächlich belegen (4K-Material, Hyperlapse, X-Quad) —
- * keine erfundenen Reichweite-/Gewicht-/Flugzeit-Zahlen. Sobald das genaue
- * Drohnen-Modell feststeht, hier die echten Werte ergänzen.
+ * Technisches Datenblatt für die Hardware-View. Werte sind die offiziellen
+ * Herstellerangaben der DJI Mini 4 Pro (Stand: DJI-Spezifikationsseite) —
+ * keine geschätzten Zahlen. Reichweite/Sendeleistung sind regulierungs-
+ * abhängig; hier ist der CE-Wert (EU) angegeben.
+ * Quelle: https://www.dji.com/mini-4-pro/specs
  */
 export interface Spec {
   label: string; // HUD-Kürzel (mono)
   value: string;
 }
 
-export const droneName = 'Cloudframe · Fluggerät';
+export const droneName = 'DJI Mini 4 Pro';
 export const droneTagline =
-  'Das Werkzeug hinter den Aufnahmen — ein kompakter Quadcopter mit stabilisierter 4K-Kamera.';
+  'Das Werkzeug hinter den Aufnahmen — ein sub-249-g-Quadcopter mit 1/1,3"-Sensor und 3-Achsen-stabilisierter 4K-Kamera.';
 
 export const specs: Spec[] = [
-  { label: 'TYP', value: 'Quadcopter' },
-  { label: 'FRAME', value: 'X-Konfiguration' },
-  { label: 'KAMERA', value: '4K · 30 FPS' },
-  { label: 'GIMBAL', value: '3-Achsen stabilisiert' },
-  { label: 'MODI', value: 'Foto · Video · Hyperlapse' },
-  { label: 'ANTRIEB', value: '4 × bürstenlos' },
+  { label: 'MODELL', value: 'DJI Mini 4 Pro' },
+  { label: 'GEWICHT', value: '< 249 g' },
+  { label: 'KAMERA', value: '1/1,3" · 48 MP' },
+  { label: 'VIDEO', value: '4K · 100 FPS' },
+  { label: 'GIMBAL', value: '3-Achsen mechanisch' },
+  { label: 'FLUGZEIT', value: 'bis 34 min' },
+  { label: 'TEMPO', value: '16 m/s' },
+  { label: 'HINDERNIS', value: 'omnidirektional' },
+  { label: 'FUNK', value: 'DJI O4 · 10 km' },
 ];
