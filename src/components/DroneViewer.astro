@@ -2,47 +2,141 @@
 /**
  * DroneViewer
  * -----------
- * Inszeniertes Standbild der echten Drohne (freigestelltes Foto). Schwebt
- * mittig auf dem dunklen HUD, sanfte Idle-Hover-Animation, Kontaktschatten
- * und ein dezenter Pointer-Parallax geben Tiefe. Der Sucher-Rahmen greift
- * die Bildmarke auf. Kein Three.js mehr — das prozedurale Modell lebt nur
- * noch im Flyby-Gimmick weiter.
+ * Inszeniertes Standbild der echten Drohne als „lebender Kamerasucher".
+ * Das freigestellte Foto schwebt groß und mittig; auf den Bauteilen sitzen
+ * nummerierte, interaktive Hotspots (Auto-Durchlauf + Hover/Tap), die eine
+ * Leitlinie in die Frame-Ecke ziehen und eine Spec-Karte aufklappen.
+ * Drumherum die Sucher-Bühne: AF-Fokusbox + Crosshair, Fokus-Lock beim
+ * Einscrollen, Kamera-OSD (REC, Timecode, 4K/f-Stop), Scanline-Sweep,
+ * Graticule und Vignette. Kein Three.js mehr — das prozedurale Modell lebt
+ * nur noch im Flyby-Gimmick weiter.
  */
+import { hotspots } from '../data/hardware';
+
 interface Props {
   class?: string;
 }
 const { class: className } = Astro.props;
+const num = (i: number) => String(i + 1).padStart(2, '0');
 ---
 
 <div class:list={['drone-viewer', className]} data-drone-viewer>
+  <span class="drone-viewer__graticule" aria-hidden="true"></span>
   <span class="drone-viewer__glow" aria-hidden="true"></span>
+  <span class="drone-viewer__scanline" aria-hidden="true"></span>
+
+  <!-- AF-Fokusbox: rahmt das Motiv wie ein Kamerasucher -->
+  <div class="drone-viewer__reticle" aria-hidden="true">
+    <span class="r-corner r-corner--tl"></span>
+    <span class="r-corner r-corner--tr"></span>
+    <span class="r-corner r-corner--bl"></span>
+    <span class="r-corner r-corner--br"></span>
+    <span class="r-cross"></span>
+  </div>
 
   <div class="drone-viewer__scene">
     <span class="drone-viewer__shadow" aria-hidden="true"></span>
+
     <div class="drone-viewer__float">
-      <picture>
-        <source srcset="/hardware/drone.webp" type="image/webp" />
-        <img
-          class="drone-viewer__img"
-          src="/hardware/drone.png"
-          width="922"
-          height="590"
-          loading="lazy"
-          decoding="async"
-          alt="Die Cloudframe-Drohne, freigestellt auf dunklem Hintergrund"
-        />
-      </picture>
+      <div class="drone-viewer__model">
+        <picture>
+          <source srcset="/hardware/drone.webp" type="image/webp" />
+          <img
+            class="drone-viewer__img"
+            src="/hardware/drone.png"
+            width="922"
+            height="590"
+            loading="lazy"
+            decoding="async"
+            alt="Die Cloudframe-Drohne (DJI Mini 4 Pro), freigestellt auf dunklem Hintergrund"
+          />
+        </picture>
+
+        <div class="drone-viewer__parts" data-parts>
+          <!-- Leitlinien Punkt → Karte -->
+          <svg
+            class="drone-viewer__links"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {
+              hotspots.map((h) => (
+                <line
+                  class="drone-viewer__link"
+                  data-id={h.id}
+                  x1={h.x}
+                  y1={h.y}
+                  x2={h.cx}
+                  y2={h.cy}
+                  pathLength="100"
+                />
+              ))
+            }
+          </svg>
+
+          <!-- Spec-Karten in den Ecken -->
+          {
+            hotspots.map((h, i) => (
+              <div
+                class:list={['hotspot-card', `hotspot-card--${h.place}`]}
+                data-id={h.id}
+                style={`--cx:${h.cx}%;--cy:${h.cy}%`}
+              >
+                <span class="hotspot-card__head">
+                  <span class="hotspot-card__index">{num(i)}</span>
+                  <span class="hotspot-card__label">{h.label}</span>
+                </span>
+                <span class="hotspot-card__value">{h.value}</span>
+                {h.sub && <span class="hotspot-card__sub">{h.sub}</span>}
+              </div>
+            ))
+          }
+
+          <!-- Marker auf den Bauteilen -->
+          {
+            hotspots.map((h, i) => (
+              <button
+                type="button"
+                class="hotspot-dot"
+                data-id={h.id}
+                style={`--x:${h.x}%;--y:${h.y}%`}
+                aria-label={`${h.label}: ${h.value}`}
+              >
+                <span class="hotspot-dot__pulse" />
+                <span class="hotspot-dot__ring" />
+                <span class="hotspot-dot__core" />
+                <span class="hotspot-dot__num">{num(i)}</span>
+              </button>
+            ))
+          }
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- HUD-Rahmen: greift die Sucher-Ecken der Bildmarke auf -->
+  <span class="drone-viewer__vignette" aria-hidden="true"></span>
+
+  <!-- HUD-Eckwinkel: Fokus-Lock greift die Sucher-Bildmarke auf -->
   <span class="drone-viewer__bracket drone-viewer__bracket--tl" aria-hidden="true"></span>
   <span class="drone-viewer__bracket drone-viewer__bracket--tr" aria-hidden="true"></span>
   <span class="drone-viewer__bracket drone-viewer__bracket--bl" aria-hidden="true"></span>
   <span class="drone-viewer__bracket drone-viewer__bracket--br" aria-hidden="true"></span>
 
-  <p class="drone-viewer__label">Cloudframe · Hardware</p>
-  <p class="drone-viewer__hint">Bewegen für Perspektive</p>
+  <!-- Kamera-OSD -->
+  <div class="drone-viewer__osd drone-viewer__osd--tl" aria-hidden="true">
+    <span class="drone-viewer__rec"><i></i>REC</span>
+    <span class="drone-viewer__tc" data-timecode>TC 00:00:00</span>
+  </div>
+  <div class="drone-viewer__osd drone-viewer__osd--tr" aria-hidden="true">
+    <span>4K·100</span>
+    <span class="dim">f/1.7</span>
+  </div>
+  <div class="drone-viewer__osd drone-viewer__osd--bl" aria-hidden="true">
+    <span class="brand">Cloudframe · HW</span>
+  </div>
+
+  <p class="drone-viewer__hint">Bauteile antippen · Maus für Perspektive</p>
 </div>
 
 <style>
@@ -58,13 +152,88 @@ const { class: className } = Astro.props;
     perspective: 1200px;
   }
 
+  /* feines Vermessungs-Gitter (wie auf der Karte) */
+  .drone-viewer__graticule {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(122, 152, 205, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(122, 152, 205, 0.06) 1px, transparent 1px);
+    background-size: 38px 38px;
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 45%, #000 35%, transparent 80%);
+    mask-image: radial-gradient(120% 100% at 50% 45%, #000 35%, transparent 80%);
+    pointer-events: none;
+  }
+
   /* weicher Lichtkegel hinter der Drohne */
   .drone-viewer__glow {
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(46% 42% at 50% 46%, rgba(122, 152, 205, 0.2), rgba(122, 152, 205, 0) 70%);
+      radial-gradient(46% 42% at 50% 46%, rgba(122, 152, 205, 0.24), rgba(122, 152, 205, 0) 70%);
     pointer-events: none;
+  }
+
+  /* Sensor-Scan: heller Streifen wandert langsam durchs Bild */
+  .drone-viewer__scanline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 16%;
+    top: -16%;
+    background:
+      linear-gradient(180deg, rgba(122, 152, 205, 0) 0%, rgba(122, 152, 205, 0.1) 50%, rgba(122, 152, 205, 0) 100%);
+    pointer-events: none;
+    animation: drone-scan 7.5s linear infinite;
+  }
+
+  /* sanfte Vignette → „Objektiv"-Tiefe */
+  .drone-viewer__vignette {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    box-shadow: inset 0 0 130px 18px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+  }
+
+  /* ── AF-Fokusbox ──────────────────────────────────────────── */
+  .drone-viewer__reticle {
+    position: absolute;
+    inset: 16% 17%;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(1.06);
+    transition: opacity 0.6s ease 0.2s, transform 0.6s ease 0.2s;
+    animation: reticle-breath 5.5s ease-in-out infinite;
+  }
+  .drone-viewer.is-armed .drone-viewer__reticle {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .r-corner {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid rgba(140, 170, 220, 0.45);
+  }
+  .r-corner--tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+  .r-corner--tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+  .r-corner--bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+  .r-corner--br { bottom: 0; right: 0; border-left: none; border-top: none; }
+  .r-cross {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    transform: translate(-50%, -50%);
+    background:
+      linear-gradient(rgba(140, 170, 220, 0.5), rgba(140, 170, 220, 0.5)) center / 1.5px 100% no-repeat,
+      linear-gradient(rgba(140, 170, 220, 0.5), rgba(140, 170, 220, 0.5)) center / 100% 1.5px no-repeat;
+  }
+  @keyframes reticle-breath {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.02); }
   }
 
   .drone-viewer__scene {
@@ -81,15 +250,22 @@ const { class: className } = Astro.props;
   }
 
   .drone-viewer__float {
-    display: grid;
-    place-items: center;
+    position: relative;
+    width: min(86%, 720px);
     animation: drone-bob 7s ease-in-out infinite;
+  }
+  .drone-viewer.is-inspecting .drone-viewer__float {
+    animation-play-state: paused;
+  }
+
+  .drone-viewer__model {
+    position: relative;
+    width: 100%;
   }
 
   .drone-viewer__img {
     display: block;
-    width: 72%;
-    max-width: 560px;
+    width: 100%;
     height: auto;
     filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
   }
@@ -98,9 +274,9 @@ const { class: className } = Astro.props;
   .drone-viewer__shadow {
     position: absolute;
     left: 50%;
-    top: 66%;
-    width: 44%;
-    height: 7%;
+    top: 64%;
+    width: 46%;
+    height: 8%;
     transform: translateX(-50%);
     background:
       radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 72%);
@@ -113,96 +289,392 @@ const { class: className } = Astro.props;
     0%, 100% { transform: translateY(0); }
     50%      { transform: translateY(-14px); }
   }
-
   @keyframes drone-shadow {
     0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
     50%      { opacity: 0.4;  transform: translateX(-50%) scale(0.9); }
   }
+  @keyframes drone-scan {
+    0%   { top: -16%; }
+    100% { top: 100%; }
+  }
 
-  /* HUD-Eckwinkel */
-  .drone-viewer__bracket {
+  /* ── Hotspots ─────────────────────────────────────────────── */
+  .drone-viewer__parts {
     position: absolute;
-    width: 26px;
-    height: 26px;
-    border: 1.5px solid rgba(255, 255, 255, 0.22);
+    inset: 0;
     pointer-events: none;
   }
-  .drone-viewer__bracket--tl { top: 16px; left: 16px; border-right: none; border-bottom: none; }
-  .drone-viewer__bracket--tr { top: 16px; right: 16px; border-left: none; border-bottom: none; }
-  .drone-viewer__bracket--bl { bottom: 16px; left: 16px; border-right: none; border-top: none; }
-  .drone-viewer__bracket--br { bottom: 16px; right: 16px; border-left: none; border-top: none; }
 
-  .drone-viewer__label {
+  .drone-viewer__links {
     position: absolute;
-    top: 22px;
-    left: 52px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .drone-viewer__link {
+    stroke: rgba(150, 180, 230, 0.95);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    opacity: 0;
+    filter: drop-shadow(0 0 3px rgba(140, 170, 220, 0.6));
+    transition: stroke-dashoffset 0.45s ease-out, opacity 0.2s ease;
+  }
+
+  .hotspot-dot {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    pointer-events: auto;
+    display: grid;
+    place-items: center;
+  }
+  .hotspot-dot__core {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #eaf0fd;
+    box-shadow: 0 0 12px 2px rgba(150, 180, 230, 0.95);
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  /* statischer Ziel-Ring – macht den Punkt klar als „antippbar" lesbar */
+  .hotspot-dot__ring {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(150, 180, 230, 0.7);
+  }
+  /* expandierender Puls */
+  .hotspot-dot__pulse {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(150, 180, 230, 0.6);
+    animation: dot-pulse 2.2s ease-out infinite;
+  }
+  .hotspot-dot__num {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(11px, -16px);
     font-family: var(--font-mono, monospace);
-    font-size: 0.6rem;
-    letter-spacing: 0.25em;
+    font-size: 0.5rem;
+    letter-spacing: 0.1em;
+    color: rgba(200, 215, 245, 0.8);
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+    transition: color 0.2s ease;
+  }
+  @keyframes dot-pulse {
+    0%   { transform: scale(0.7); opacity: 0.9; }
+    70%  { transform: scale(2.2); opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  .hotspot-card {
+    position: absolute;
+    left: var(--cx);
+    top: var(--cy);
+    min-width: 10.5rem;
+    max-width: 14rem;
+    padding: 0.7rem 0.8rem 0.7rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    border: 1px solid rgba(150, 180, 230, 0.4);
+    border-left: 2.5px solid #8ca8dc;
+    border-radius: 9px;
+    background: rgba(13, 15, 22, 0.9);
+    backdrop-filter: blur(7px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(140, 170, 220, 0.08);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease, transform 0.28s ease;
+  }
+  .hotspot-card__head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .hotspot-card__index {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.5rem;
+    letter-spacing: 0.05em;
+    color: #0b0b0e;
+    background: #8ca8dc;
+    border-radius: 3px;
+    padding: 0.1rem 0.25rem;
+    line-height: 1;
+  }
+  .hotspot-card__label {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.54rem;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
+    color: #8ca8dc;
+  }
+  .hotspot-card__value {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.92rem;
+    color: #f4f4f5;
+  }
+  .hotspot-card__sub {
+    font-size: 0.68rem;
+    color: #a1a1aa;
+  }
+
+  /* Karten klappen aus ihrer Ecke auf */
+  .hotspot-card--tl { transform: translate(0, 0) scale(0.94); transform-origin: top left; }
+  .hotspot-card--tr { transform: translate(-100%, 0) scale(0.94); transform-origin: top right; }
+  .hotspot-card--bl { transform: translate(0, -100%) scale(0.94); transform-origin: bottom left; }
+  .hotspot-card--br { transform: translate(-100%, -100%) scale(0.94); transform-origin: bottom right; }
+
+  /* aktiver Hotspot: Linie zeichnet sich, Karte erscheint, Punkt leuchtet */
+  .drone-viewer__parts[data-active='cam'] .drone-viewer__link[data-id='cam'],
+  .drone-viewer__parts[data-active='obs'] .drone-viewer__link[data-id='obs'],
+  .drone-viewer__parts[data-active='mot'] .drone-viewer__link[data-id='mot'],
+  .drone-viewer__parts[data-active='bat'] .drone-viewer__link[data-id='bat'] {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  .drone-viewer__parts[data-active='cam'] .hotspot-card[data-id='cam'],
+  .drone-viewer__parts[data-active='obs'] .hotspot-card[data-id='obs'],
+  .drone-viewer__parts[data-active='mot'] .hotspot-card[data-id='mot'],
+  .drone-viewer__parts[data-active='bat'] .hotspot-card[data-id='bat'] {
+    opacity: 1;
+  }
+  .drone-viewer__parts[data-active='obs'] .hotspot-card--tl { transform: translate(0, 0) scale(1); }
+  .drone-viewer__parts[data-active='bat'] .hotspot-card--tr { transform: translate(-100%, 0) scale(1); }
+  .drone-viewer__parts[data-active='cam'] .hotspot-card--bl { transform: translate(0, -100%) scale(1); }
+  .drone-viewer__parts[data-active='mot'] .hotspot-card--br { transform: translate(-100%, -100%) scale(1); }
+
+  .drone-viewer__parts[data-active='cam'] .hotspot-dot[data-id='cam'] .hotspot-dot__core,
+  .drone-viewer__parts[data-active='obs'] .hotspot-dot[data-id='obs'] .hotspot-dot__core,
+  .drone-viewer__parts[data-active='mot'] .hotspot-dot[data-id='mot'] .hotspot-dot__core,
+  .drone-viewer__parts[data-active='bat'] .hotspot-dot[data-id='bat'] .hotspot-dot__core {
+    transform: scale(1.4);
+    background: #8ca8dc;
+  }
+  .drone-viewer__parts[data-active='cam'] .hotspot-dot[data-id='cam'] .hotspot-dot__num,
+  .drone-viewer__parts[data-active='obs'] .hotspot-dot[data-id='obs'] .hotspot-dot__num,
+  .drone-viewer__parts[data-active='mot'] .hotspot-dot[data-id='mot'] .hotspot-dot__num,
+  .drone-viewer__parts[data-active='bat'] .hotspot-dot[data-id='bat'] .hotspot-dot__num {
+    color: #cfe0ff;
+  }
+
+  /* ── HUD-Eckwinkel (Fokus-Lock) ───────────────────────────── */
+  .drone-viewer__bracket {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .drone-viewer__bracket--tl { top: 14px; left: 14px; border-right: none; border-bottom: none; transform: translate(-14px, -14px); }
+  .drone-viewer__bracket--tr { top: 14px; right: 14px; border-left: none; border-bottom: none; transform: translate(14px, -14px); }
+  .drone-viewer__bracket--bl { bottom: 14px; left: 14px; border-right: none; border-top: none; transform: translate(-14px, 14px); }
+  .drone-viewer__bracket--br { bottom: 14px; right: 14px; border-left: none; border-top: none; transform: translate(14px, 14px); }
+  .drone-viewer.is-armed .drone-viewer__bracket {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+
+  /* ── Kamera-OSD ───────────────────────────────────────────── */
+  .drone-viewer__osd {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.56rem;
+    letter-spacing: 0.18em;
     color: rgba(255, 255, 255, 0.55);
     pointer-events: none;
   }
+  .drone-viewer__osd--tl { top: 18px; left: 50px; }
+  .drone-viewer__osd--tr { top: 18px; right: 50px; }
+  .drone-viewer__osd--bl { bottom: 18px; left: 50px; }
+  .drone-viewer__osd .dim { color: rgba(255, 255, 255, 0.32); }
+  .drone-viewer__osd .brand {
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    color: rgba(255, 255, 255, 0.42);
+  }
+  .drone-viewer__rec {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .drone-viewer__rec i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    animation: rec-blink 1.4s steps(1) infinite;
+  }
+  @keyframes rec-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0.15; }
+  }
+  .drone-viewer__tc { color: rgba(255, 255, 255, 0.42); }
 
   .drone-viewer__hint {
     position: absolute;
-    bottom: 22px;
-    right: 52px;
+    bottom: 18px;
+    right: 50px;
     font-family: var(--font-mono, monospace);
     font-size: 0.56rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.38);
+    color: rgba(255, 255, 255, 0.4);
     pointer-events: none;
   }
 
   @media (max-width: 600px) {
-    .drone-viewer__hint { display: none; }
-    .drone-viewer__img { width: 82%; }
+    .drone-viewer__float { width: 92%; }
+    .drone-viewer__osd--tl { left: 42px; gap: 0.6rem; }
+    .drone-viewer__osd--tr { right: 42px; }
+    .drone-viewer__osd--bl { display: none; }
+    .drone-viewer__hint { right: 42px; left: 42px; text-align: center; }
+    .hotspot-card { min-width: 9rem; }
   }
 
-  /* Bewegungsarm: kein Schweben, kein Parallax */
+  /* Bewegungsarm: kein Schweben, Scan, Parallax, Pulsieren, Atmen */
   @media (prefers-reduced-motion: reduce) {
     .drone-viewer__float,
-    .drone-viewer__shadow { animation: none; }
+    .drone-viewer__shadow,
+    .drone-viewer__scanline,
+    .drone-viewer__reticle,
+    .hotspot-dot__pulse,
+    .drone-viewer__rec i { animation: none; }
     .drone-viewer__scene { transition: none; }
+    .drone-viewer__scanline { display: none; }
+    .drone-viewer__bracket { transition: opacity 0.3s ease; transform: none; }
   }
 </style>
 
 <script>
+  const HOTSPOT_IDS = ['cam', 'obs', 'mot', 'bat'];
+
   function initViewer(viewer: HTMLElement) {
     const scene = viewer.querySelector<HTMLElement>('.drone-viewer__scene');
-    if (!scene) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const parts = viewer.querySelector<HTMLElement>('[data-parts]');
+    const tc = viewer.querySelector<HTMLElement>('[data-timecode]');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let raf = 0;
-    let tx = 0, ty = 0, rx = 0, ry = 0;
-
-    function apply() {
-      raf = 0;
-      scene!.style.setProperty('--tx', tx.toFixed(1) + 'px');
-      scene!.style.setProperty('--ty', ty.toFixed(1) + 'px');
-      scene!.style.setProperty('--rx', rx.toFixed(2) + 'deg');
-      scene!.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+    // ── Pointer-Parallax (verschiebt die ganze Modell-Szene) ──
+    if (scene && !reduce) {
+      let raf = 0;
+      let tx = 0, ty = 0, rx = 0, ry = 0;
+      const apply = () => {
+        raf = 0;
+        scene.style.setProperty('--tx', tx.toFixed(1) + 'px');
+        scene.style.setProperty('--ty', ty.toFixed(1) + 'px');
+        scene.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+        scene.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+      };
+      const schedule = () => { if (!raf) raf = requestAnimationFrame(apply); };
+      viewer.addEventListener('pointermove', (e) => {
+        const r = viewer.getBoundingClientRect();
+        const nx = (e.clientX - r.left) / r.width - 0.5;
+        const ny = (e.clientY - r.top) / r.height - 0.5;
+        tx = nx * 20; ty = ny * 14; ry = nx * 7; rx = -ny * 6;
+        schedule();
+      });
+      viewer.addEventListener('pointerleave', () => {
+        tx = ty = rx = ry = 0; schedule();
+      });
     }
-    function schedule() {
-      if (!raf) raf = requestAnimationFrame(apply);
+
+    // ── Hotspots: Auto-Durchlauf + Hover/Tap ──
+    if (parts) {
+      let idx = 0;
+      let timer: number | undefined;
+      let manual = false;
+
+      const setActive = (id: string | null) => {
+        if (id) parts.dataset.active = id;
+        else delete parts.dataset.active;
+      };
+      const cycle = () => {
+        if (manual) return;
+        setActive(HOTSPOT_IDS[idx % HOTSPOT_IDS.length]);
+        idx++;
+      };
+      const startCycle = () => {
+        if (timer || reduce) return;
+        cycle();
+        timer = window.setInterval(cycle, 3200);
+      };
+      const stopCycle = () => {
+        if (timer) { clearInterval(timer); timer = undefined; }
+      };
+
+      // Hover/Focus auf einen Marker übernimmt die Steuerung
+      viewer.querySelectorAll<HTMLElement>('.hotspot-dot').forEach((dot) => {
+        const id = dot.dataset.id!;
+        const grab = () => { manual = true; setActive(id); };
+        dot.addEventListener('pointerenter', grab);
+        dot.addEventListener('focus', grab);
+        dot.addEventListener('click', grab);
+      });
+      viewer.addEventListener('pointerenter', () => viewer.classList.add('is-inspecting'));
+      viewer.addEventListener('pointerleave', () => {
+        viewer.classList.remove('is-inspecting');
+        manual = false;
+      });
+
+      // Start, sobald die View sichtbar ist; Pause bei verstecktem Tab
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            viewer.classList.add('is-armed');
+            startCycle();
+          } else {
+            stopCycle();
+          }
+        }
+      }, { threshold: 0.35 });
+      io.observe(viewer);
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopCycle();
+        else if (viewer.classList.contains('is-armed')) startCycle();
+      });
+
+      if (reduce) setActive('cam'); // statisch: erste Karte offen lassen
     }
 
-    viewer.addEventListener('pointermove', (e) => {
-      const r = viewer.getBoundingClientRect();
-      const nx = (e.clientX - r.left) / r.width - 0.5;
-      const ny = (e.clientY - r.top) / r.height - 0.5;
-      tx = nx * 20;
-      ty = ny * 14;
-      ry = nx * 7;
-      rx = -ny * 6;
-      schedule();
-    });
-    viewer.addEventListener('pointerleave', () => {
-      tx = ty = rx = ry = 0;
-      schedule();
-    });
+    // ── Fake-Timecode (mm:ss:ff) ──
+    if (tc && !reduce) {
+      let frames = 0;
+      let visible = true;
+      document.addEventListener('visibilitychange', () => { visible = !document.hidden; });
+      window.setInterval(() => {
+        if (!visible) return;
+        frames = (frames + 1) % (30 * 60 * 60);
+        const ff = frames % 30;
+        const ss = Math.floor(frames / 30) % 60;
+        const mm = Math.floor(frames / (30 * 60)) % 60;
+        const p = (n: number) => String(n).padStart(2, '0');
+        tc.textContent = `TC ${p(mm)}:${p(ss)}:${p(ff)}`;
+      }, 1000 / 12);
+    }
   }
 
   document.querySelectorAll<HTMLElement>('[data-drone-viewer]').forEach(initViewer);
