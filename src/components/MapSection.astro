@@ -21,6 +21,24 @@
           <span class="hud-corner hud-br"></span>
           <span class="hud-corner hud-bl"></span>
         </div>
+
+        <!-- Ziel-Fadenkreuz (folgt dem Cursor) + Live-Geo-OSD -->
+        <div class="map-crosshair" data-crosshair aria-hidden="true">
+          <span class="ch-v"></span>
+          <span class="ch-h"></span>
+          <span class="ch-dot"></span>
+        </div>
+        <div class="map-osd map-osd--tl" aria-hidden="true">
+          <span class="map-rec"><i></i>REC</span>
+          <span class="map-coord" data-coord>51.9467°N · 009.2394°E</span>
+        </div>
+        <div class="map-osd map-osd--tr" aria-hidden="true">
+          <span class="map-zoom" data-zoom>ZOOM ×1.0</span>
+        </div>
+        <div class="map-osd map-osd--bl" aria-hidden="true">
+          <span>Cloudframe · GEO</span>
+        </div>
+
         <div class="zoom-controls">
           <button class="zoom-btn" id="zoom-in" aria-label="Reinzoomen">+</button>
           <button class="zoom-btn" id="zoom-out" aria-label="Rauszoomen">−</button>
@@ -30,7 +48,17 @@
 
       <aside class="location-card">
         <div id="card-empty" class="card-empty">
-          <p class="card-hint">← Location wählen</p>
+          <div class="idle-hud">
+            <div class="idle-reticle" aria-hidden="true">
+              <span class="idle-spin"></span>
+              <span class="idle-ring"></span>
+              <span class="idle-cross"></span>
+            </div>
+            <p class="idle-status">Kein Ziel erfasst</p>
+            <p class="idle-coord" data-idle-coord>--.----° · ---.----°</p>
+            <span class="idle-scan" aria-hidden="true"></span>
+            <p class="card-hint"><span data-loc-count>8</span> Locations · Pin wählen</p>
+          </div>
         </div>
 
         <div id="card-filled" class="card-filled" style="display:none">
@@ -38,6 +66,7 @@
           <div id="card-media" class="card-media" style="display:none">
             <video id="card-video" class="card-media-el" muted playsinline loop style="display:none"></video>
             <img id="card-img" class="card-media-el" alt="" style="display:none" />
+            <div id="card-gallery" class="card-gallery" style="display:none"></div>
           </div>
 
           <!-- Textinfos -->
@@ -74,6 +103,87 @@
   const cardMediaEl = document.getElementById('card-media') as HTMLElement;
   const cardResWrap = document.getElementById('card-res-wrap') as HTMLElement;
   const cardResEl   = document.getElementById('card-res')   as HTMLElement;
+  const cardGalleryEl = document.getElementById('card-gallery') as HTMLElement;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ── Moderne Slideshow (Crossfade + Ken-Burns) für gallery-Locations ──
+  let galleryTimer: number | undefined;
+  let gallerySlides: HTMLElement[] = [];
+  let galleryDots: HTMLElement[] = [];
+  let galleryIdx = 0;
+
+  function galleryStop() {
+    if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = undefined; }
+    cardGalleryEl.innerHTML = '';
+    cardGalleryEl.style.display = 'none';
+    gallerySlides = [];
+    galleryDots = [];
+    galleryIdx = 0;
+  }
+
+  function galleryGoTo(i: number) {
+    if (!gallerySlides.length) return;
+    galleryIdx = (i + gallerySlides.length) % gallerySlides.length;
+    gallerySlides.forEach((s, n) => s.classList.toggle('is-active', n === galleryIdx));
+    galleryDots.forEach((d, n) => d.classList.toggle('is-active', n === galleryIdx));
+  }
+
+  function galleryPlay() {
+    if (galleryTimer || reduceMotion || gallerySlides.length < 2) return;
+    galleryTimer = window.setInterval(() => galleryGoTo(galleryIdx + 1), 3600);
+  }
+  function galleryRestart() {
+    if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = undefined; }
+    galleryPlay();
+  }
+
+  function galleryShow(images: string[]) {
+    galleryStop();
+    const track = document.createElement('div');
+    track.className = 'gallery-track';
+    images.forEach((src, i) => {
+      const slide = document.createElement('div');
+      slide.className =
+        'gallery-slide ' + (i % 2 ? 'kb-out' : 'kb-in') + (i === 0 ? ' is-active' : '');
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = '';
+      img.decoding = 'async';
+      img.loading = i === 0 ? 'eager' : 'lazy';
+      slide.appendChild(img);
+      track.appendChild(slide);
+      gallerySlides.push(slide);
+    });
+    const dots = document.createElement('div');
+    dots.className = 'gallery-dots';
+    images.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'gallery-dot' + (i === 0 ? ' is-active' : '');
+      dot.setAttribute('aria-label', `Bild ${i + 1} von ${images.length}`);
+      dot.addEventListener('click', () => { galleryGoTo(i); galleryRestart(); });
+      dots.appendChild(dot);
+      galleryDots.push(dot);
+    });
+    cardGalleryEl.appendChild(track);
+    cardGalleryEl.appendChild(dots);
+    cardGalleryEl.style.display = 'block';
+    galleryPlay();
+  }
+
+  // Auto-Advance bei Hover pausieren
+  cardGalleryEl.addEventListener('pointerenter', () => {
+    if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = undefined; }
+  });
+  cardGalleryEl.addEventListener('pointerleave', () => galleryPlay());
+
+  // ── Idle-HUD: Location-Count + scrambelnde Standby-Koordinaten ──
+  const idleCoordEl = document.querySelector('[data-idle-coord]') as HTMLElement | null;
+  const locCountEl  = document.querySelector('[data-loc-count]')  as HTMLElement | null;
+  if (locCountEl) locCountEl.textContent = String(locations.length).padStart(2, '0');
+
+  // Das Idle-HUD spiegelt die Live-Koordinaten unter dem Cursor (s. initMap).
+  // Ohne Cursor auf der Karte bleiben die Zahlen stehen — kein Durchlaufen.
 
   function showCard(loc: Location) {
     const empty  = document.getElementById('card-empty')!;
@@ -93,8 +203,16 @@
       cardResWrap.style.display = 'none';
     }
 
-    // Portrait-Media inline
-    if (loc.portraitVideo) {
+    // Portrait-Media inline — Gallery > Video > Bild
+    if (loc.gallery && loc.gallery.length) {
+      cardVideoEl.pause();
+      cardVideoEl.removeAttribute('src');
+      cardVideoEl.style.display = 'none';
+      cardImgEl.style.display   = 'none';
+      galleryShow(loc.gallery);
+      cardMediaEl.style.display = 'block';
+    } else if (loc.portraitVideo) {
+      galleryStop();
       if (cardVideoEl.getAttribute('src') !== loc.portraitVideo) {
         cardVideoEl.src = loc.portraitVideo;
         cardVideoEl.load();
@@ -104,6 +222,7 @@
       cardMediaEl.style.display = 'block';
       cardVideoEl.play().catch(() => {});
     } else if (loc.portraitImage) {
+      galleryStop();
       cardImgEl.src             = loc.portraitImage;
       cardImgEl.style.display   = 'block';
       cardVideoEl.pause();
@@ -111,6 +230,7 @@
       cardVideoEl.style.display = 'none';
       cardMediaEl.style.display = 'block';
     } else {
+      galleryStop();
       cardVideoEl.pause();
       cardVideoEl.removeAttribute('src');
       cardMediaEl.style.display = 'none';
@@ -191,6 +311,7 @@
         const [x, y] = projection(d.coords)!;
         return `translate(${x},${y})`;
       })
+      .style('animation-delay', (_d, i) => `${320 + i * 55}ms`)
       .style('cursor', 'pointer')
       .on('click', (_ev, d) => {
         showCard(d);
@@ -226,9 +347,49 @@
           const [x, y] = projection(d.coords)!;
           return `translate(${x},${y}) scale(${1 / t.k})`;
         });
+        if (zoomReadout) zoomReadout.textContent = `ZOOM ×${t.k.toFixed(1)}`;
       });
 
+    const zoomReadout = document.querySelector('[data-zoom]') as HTMLElement | null;
+
     svg.call(zoom);
+
+    // Live-Koordinaten unter dem Cursor (Sucher-/Recon-Look) + Ziel-Fadenkreuz
+    const coordReadout = document.querySelector('[data-coord]') as HTMLElement | null;
+    const crosshairEl  = document.querySelector('[data-crosshair]') as HTMLElement | null;
+    const fmtCoord = (lat: number, lon: number) => {
+      const ns = lat >= 0 ? 'N' : 'S';
+      const ew = lon >= 0 ? 'E' : 'W';
+      const la = Math.abs(lat).toFixed(4);
+      const lo = Math.abs(lon).toFixed(4).padStart(7, '0');
+      return `${la}°${ns} · ${lo}°${ew}`;
+    };
+    svg.on('pointermove', (event) => {
+      const [mx, my] = d3.pointer(event);
+      // Fadenkreuz an die Cursorposition (px relativ zum Karten-Viewport)
+      if (crosshairEl) {
+        crosshairEl.style.setProperty('--cx', `${mx}px`);
+        crosshairEl.style.setProperty('--cy', `${my}px`);
+      }
+      mapWrap.classList.add('is-targeting');
+      // tatsächliche Geo-Koordinaten (Zoom-Transform berücksichtigt)
+      const t = d3.zoomTransform(svg.node() as Element);
+      const geo = projection.invert?.(t.invert([mx, my]));
+      if (geo) {
+        const txt = fmtCoord(geo[1], geo[0]);
+        if (coordReadout) coordReadout.textContent = txt;
+        if (idleCoordEl)  idleCoordEl.textContent  = txt; // Idle-HUD spiegelt mit
+      }
+    });
+    // Cursor verlässt die Karte → Fadenkreuz aus, Koordinaten frieren ein
+    svg.on('pointerleave', () => {
+      mapWrap.classList.remove('is-targeting');
+    });
+
+    // Intro: Länder/Graticule blenden ein, Pins poppen gestaffelt, Eckwinkel rasten ein
+    if (!reduceMotion) {
+      requestAnimationFrame(() => mapWrap.classList.add('is-intro'));
+    }
 
     // Weiches Heranfahren an eine Location (zentrieren + zoomen)
     function flyTo(loc: Location) {
@@ -283,6 +444,93 @@
 
 <!-- SVG-Klassen sind nicht scopebar → is:global mit Eltern-Scope -->
 <style is:global>
+  /* ── Card-Gallery (moderne Slideshow) ─────────────────────── */
+  .location-card .card-gallery {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .location-card .gallery-track {
+    position: absolute;
+    inset: 0;
+  }
+
+  .location-card .gallery-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+    will-change: opacity;
+  }
+
+  .location-card .gallery-slide.is-active {
+    opacity: 1;
+  }
+
+  .location-card .gallery-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Ken-Burns: aktiver Slide zoomt langsam, Richtung wechselt pro Bild */
+  .location-card .gallery-slide.is-active.kb-in img {
+    animation: kb-in 6s ease-out both;
+  }
+  .location-card .gallery-slide.is-active.kb-out img {
+    animation: kb-out 6s ease-out both;
+  }
+  @keyframes kb-in {
+    from { transform: scale(1.12); }
+    to   { transform: scale(1); }
+  }
+  @keyframes kb-out {
+    from { transform: scale(1); }
+    to   { transform: scale(1.12); }
+  }
+
+  /* untere Abdunklung → Indikatoren bleiben lesbar */
+  .location-card .card-gallery::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 40%;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.45));
+    pointer-events: none;
+  }
+
+  .location-card .gallery-dots {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+  }
+
+  .location-card .gallery-dot {
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border: none;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+
+  .location-card .gallery-dot.is-active {
+    width: 20px;
+    background: #fff;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .location-card .gallery-slide.is-active img { animation: none; }
+  }
+
   .map-section .graticule {
     fill: none;
     stroke: #c9d4e3;
@@ -391,6 +639,26 @@
     0%   { opacity: 0.35; transform: scale(0.6); }
     70%  { opacity: 0;    transform: scale(2.6); }
     100% { opacity: 0;    transform: scale(2.6); }
+  }
+
+  /* ── Intro beim Öffnen der Karte ──────────────────────────── */
+  .map-wrap.is-intro .country {
+    animation: map-layer-in 0.7s ease backwards;
+  }
+  .map-wrap.is-intro .graticule {
+    animation: map-grat-in 0.8s ease 0.25s backwards;
+  }
+  .map-wrap.is-intro .pin-group {
+    animation: map-layer-in 0.5s ease backwards;
+    /* animation-delay wird pro Pin per JS gesetzt (gestaffeltes Poppen) */
+  }
+  @keyframes map-layer-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes map-grat-in {
+    from { opacity: 0; }
+    to   { opacity: 0.4; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -670,6 +938,177 @@
     font-size: 0.68rem;
     color: var(--color-text);
     white-space: nowrap;
+  }
+
+  /* ── Ziel-Fadenkreuz (folgt dem Cursor) ───────────────────── */
+  .map-crosshair {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+  .map-wrap.is-targeting .map-crosshair {
+    opacity: 1;
+  }
+  .map-crosshair .ch-v {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--cx, 50%);
+    width: 1px;
+    background: linear-gradient(transparent, rgba(37, 99, 235, 0.4), transparent);
+  }
+  .map-crosshair .ch-h {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: var(--cy, 50%);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.4), transparent);
+  }
+  .map-crosshair .ch-dot {
+    position: absolute;
+    left: var(--cx, 50%);
+    top: var(--cy, 50%);
+    width: 16px;
+    height: 16px;
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--color-accent);
+    border-radius: 50%;
+    opacity: 0.7;
+  }
+
+  /* ── Live-Geo-OSD (Sucher-Telemetrie) ─────────────────────── */
+  .map-osd {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.16em;
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+  .map-osd--tl { top: 16px; left: 34px; }
+  .map-osd--tr { top: 16px; right: 34px; }
+  .map-osd--bl { bottom: 14px; left: 34px; text-transform: uppercase; letter-spacing: 0.25em; }
+  .map-rec {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--color-text);
+  }
+  .map-rec i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.7);
+    animation: map-rec-blink 1.4s steps(1) infinite;
+  }
+  @keyframes map-rec-blink {
+    0%, 49%   { opacity: 1; }
+    50%, 100% { opacity: 0.2; }
+  }
+  .map-coord,
+  .map-zoom {
+    color: var(--color-accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Eckwinkel rasten beim Öffnen ein (Fokus-Lock) */
+  .map-wrap.is-intro .hud-corner {
+    animation: map-corner-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  @keyframes map-corner-in {
+    from { opacity: 0; transform: scale(1.6); }
+    to   { opacity: 0.4; transform: scale(1); }
+  }
+
+  /* ── Idle-HUD (Standby neben der Karte) ───────────────────── */
+  .idle-hud {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    text-align: center;
+    width: 100%;
+    padding: 1rem 0;
+  }
+  .idle-reticle {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+  }
+  .idle-ring {
+    position: absolute;
+    inset: 6px;
+    border: 1.5px solid var(--color-accent);
+    border-radius: 50%;
+    opacity: 0.5;
+    animation: idle-breath 3.6s ease-in-out infinite;
+  }
+  .idle-spin {
+    position: absolute;
+    inset: 0;
+    border: 1.5px dashed rgba(37, 99, 235, 0.4);
+    border-radius: 50%;
+    animation: idle-spin 9s linear infinite;
+  }
+  .idle-cross {
+    width: 16px;
+    height: 16px;
+    background:
+      linear-gradient(var(--color-accent), var(--color-accent)) center / 1px 100% no-repeat,
+      linear-gradient(var(--color-accent), var(--color-accent)) center / 100% 1px no-repeat;
+    opacity: 0.6;
+  }
+  @keyframes idle-breath {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50%      { transform: scale(1.12); opacity: 0.25; }
+  }
+  @keyframes idle-spin {
+    to { transform: rotate(360deg); }
+  }
+  .idle-status {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    max-width: unset;
+  }
+  .idle-coord {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
+    font-variant-numeric: tabular-nums;
+    max-width: unset;
+  }
+  .idle-scan {
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+    opacity: 0.55;
+    animation: idle-scanx 2.6s ease-in-out infinite;
+  }
+  @keyframes idle-scanx {
+    0%, 100% { opacity: 0.2; transform: scaleX(0.6); }
+    50%      { opacity: 0.7; transform: scaleX(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .map-rec i,
+    .idle-ring,
+    .idle-spin,
+    .idle-scan { animation: none; }
   }
 
   /* ── Responsive ───────────────────────────────────────────── */
