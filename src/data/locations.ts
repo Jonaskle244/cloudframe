@@ -8,6 +8,7 @@ export interface Location {
   resolution?: string;
   portraitVideo?: string;
   portraitImage?: string;
+  gallery?: string[]; // mehrere Hochkant-Bilder → moderne Slideshow in der Card
 }
 
 export const locations: Location[] = [
@@ -18,7 +19,11 @@ export const locations: Location[] = [
     region: 'NRW, Deutschland',
     coords: [9.2394, 51.9467],
     altitude: '~496 m NN',
-    portraitImage: '/images/koeterberg-luegde.jpg',
+    resolution: '48 MP · Foto',
+    gallery: [
+      '/images/koeterberg-luegde.jpg',
+      '/images/koeterberg-winter.jpg',
+    ],
   },
   {
     id: 'falkenburg',
@@ -66,5 +71,29 @@ export const locations: Location[] = [
     coords: [28.2102, 36.3224],
     altitude: '~10 m NN',
     portraitImage: '/images/rhodos-bucht.jpg',
+  },
+  {
+    id: 'prag',
+    index: 7,
+    name: 'Prag',
+    region: 'Böhmen, Tschechien',
+    coords: [14.4114, 50.0865],
+    altitude: '~200 m NN',
+    resolution: '4K · 30 FPS',
+    portraitVideo: '/videos/prag-cityflug.mp4',
+  },
+  {
+    id: 'korfu',
+    index: 8,
+    name: 'Korfu',
+    region: 'Ionische Inseln, Griechenland',
+    coords: [19.6736, 39.6869],
+    altitude: '~60 m NN',
+    resolution: '48 MP · Foto',
+    gallery: [
+      '/images/korfu-porto-timoni.jpg',
+      '/images/korfu-cape-drastis.jpg',
+      '/images/korfu-paleokastritsa.jpg',
+    ],
   },
 ];
