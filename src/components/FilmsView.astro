@@ -8,14 +8,14 @@ const pad = (n: number) => String(n).padStart(2, '0');
 <section class="films">
   <div class="films-inner container">
     <div class="films-header">
-      <p class="films-kicker">Cloudframe</p>
-      <h2>Filme</h2>
-      <p class="films-lead">Cinematische Drohnenflüge — in voller Breite.</p>
+      <p class="films-kicker reveal" style="--d:0.05s">Cloudframe</p>
+      <h2 class="reveal" style="--d:0.12s">Filme</h2>
+      <p class="films-lead reveal" style="--d:0.2s">Cinematische Drohnenflüge — in voller Breite.</p>
     </div>
 
     <div class="films-stage">
-      <div class="films-featured">
-        <div class="films-screen">
+      <div class="films-featured reveal" style="--d:0.28s">
+        <div class="films-screen" data-state="paused">
           <video
             id="film-player"
             class="films-video"
@@ -26,13 +26,33 @@ const pad = (n: number) => String(n).padStart(2, '0');
             preload="metadata"
           ></video>
 
+          <div class="films-hud" aria-hidden="true">
+            <span class="fhud-corner fhud-corner--tl"></span>
+            <span class="fhud-corner fhud-corner--tr"></span>
+            <span class="fhud-corner fhud-corner--bl"></span>
+            <span class="fhud-corner fhud-corner--br"></span>
+
+            <span class="films-osd">
+              <span class="films-osd__dot"></span>
+              <span class="films-osd__state" id="film-osd-state">PAUSE</span>
+              <span class="films-osd__tc"><span id="film-tc-cur">00:00</span> / <span id="film-tc-dur">00:00</span></span>
+            </span>
+
+            <span class="films-osd films-osd--res" id="film-osd-res">4K · 30</span>
+
+            <span class="films-reticle">
+              <span class="films-reticle__ring"></span>
+              <span class="films-reticle__cross"></span>
+            </span>
+          </div>
+
           <button class="films-playpause" type="button" data-state="paused" aria-label="Abspielen oder pausieren">
             <span class="ico ico--play" aria-hidden="true"></span>
             <span class="ico ico--pause" aria-hidden="true"></span>
           </button>
         </div>
 
-        <div class="films-meta">
+        <div class="films-meta reveal" style="--d:0.36s">
           <p class="films-meta__idx" id="film-idx">01</p>
           <h3 class="films-meta__title" id="film-title">{first.title}</h3>
           <p class="films-meta__region" id="film-region">{first.region}</p>
@@ -51,7 +71,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
       <ul class="films-playlist">
         {films.map((f, i) => (
-          <li>
+          <li class="reveal" style={`--d:${0.42 + i * 0.07}s`}>
             <button
               class="film-item"
               type="button"
@@ -67,6 +87,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
               <span class="film-item__text">
                 <span class="film-item__title">{f.title}</span>
                 <span class="film-item__region">{f.region}</span>
+              </span>
+              <span class="film-item__eq" aria-hidden="true">
+                <span></span><span></span><span></span>
               </span>
             </button>
           </li>
@@ -299,6 +322,180 @@ const pad = (n: number) => String(n).padStart(2, '0');
     color: var(--color-text-muted);
   }
 
+  /* ── Intro-Reveal (feuert bei jedem View-Öffnen: display none→block) ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    animation: filmsReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both;
+  }
+
+  @keyframes filmsReveal {
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ── Sucher-HUD im Player-Screen ──────────────────────────── */
+  .films-hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .fhud-corner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
+    opacity: 0;
+    animation: fhudLock 0.55s ease 0.35s forwards;
+  }
+  .fhud-corner--tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+  .fhud-corner--tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+  .fhud-corner--bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+  .fhud-corner--br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+  @keyframes fhudLock {
+    from { opacity: 0; transform: scale(1.4); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .films-osd {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 0.32rem 0.55rem;
+    border-radius: 5px;
+    opacity: 0;
+    animation: filmsReveal 0.6s ease 0.5s both;
+  }
+
+  .films-osd--res {
+    left: auto;
+    right: 16px;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .films-osd__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+  }
+  .films-screen[data-state='playing'] .films-osd__dot {
+    background: #ff3b30;
+    box-shadow: 0 0 8px rgba(255, 59, 48, 0.85);
+    animation: fosdBlink 1.6s steps(1) infinite;
+  }
+
+  @keyframes fosdBlink {
+    0%, 55% { opacity: 1; }
+    56%, 100% { opacity: 0.3; }
+  }
+
+  .films-osd__tc { opacity: 0.72; }
+
+  /* Standby-Reticle: atmet, wenn pausiert; blendet beim Abspielen aus */
+  .films-reticle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 66px;
+    height: 66px;
+    transform: translate(-50%, -50%);
+    opacity: 0.9;
+    /* Schatten macht das Reticle auf hellen wie dunklen Frames lesbar */
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.65));
+    transition: opacity 0.45s ease;
+  }
+  .films-screen[data-state='playing'] .films-reticle { opacity: 0; }
+
+  .films-reticle__ring {
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    animation: reticleBreath 3.4s ease-in-out infinite;
+  }
+  .films-reticle__cross::before,
+  .films-reticle__cross::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    background: rgba(255, 255, 255, 0.85);
+  }
+  .films-reticle__cross::before {
+    width: 14px; height: 1.5px; transform: translate(-50%, -50%);
+  }
+  .films-reticle__cross::after {
+    width: 1.5px; height: 14px; transform: translate(-50%, -50%);
+  }
+
+  @keyframes reticleBreath {
+    0%, 100% { transform: scale(1); opacity: 0.55; }
+    50%       { transform: scale(1.12); opacity: 0.85; }
+  }
+
+  /* ── Playlist: "läuft"-Equalizer am aktiven Clip ──────────── */
+  .film-item {
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .film-item:hover { transform: translateX(3px); }
+
+  .film-item__eq {
+    margin-left: auto;
+    display: none;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+  }
+  .film-item[aria-current='true'] .film-item__eq { display: inline-flex; }
+
+  .film-item__eq span {
+    width: 2.5px;
+    height: 40%;
+    background: var(--color-accent);
+    border-radius: 1px;
+  }
+  .films-playlist[data-playing='true'] .film-item[aria-current='true'] .film-item__eq span {
+    animation: eqBounce 0.9s ease-in-out infinite;
+  }
+  .film-item__eq span:nth-child(2) { animation-delay: 0.15s; }
+  .film-item__eq span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes eqBounce {
+    0%, 100% { height: 30%; }
+    50%       { height: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .films-osd,
+    .fhud-corner {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+    .films-reticle__ring,
+    .films-osd__dot,
+    .film-item__eq span {
+      animation: none;
+    }
+    .film-item:hover { transform: none; }
+  }
+
   /* ── Responsive ───────────────────────────────────────────── */
   @media (max-width: 768px) {
     .films-stage { flex-direction: column; }
@@ -315,16 +512,40 @@ const pad = (n: number) => String(n).padStart(2, '0');
 <script>
   const player = document.getElementById('film-player') as HTMLVideoElement;
   const ppBtn = document.querySelector('.films-playpause') as HTMLButtonElement;
+  const screenEl = document.querySelector('.films-screen') as HTMLElement;
+  const playlistEl = document.querySelector('.films-playlist') as HTMLElement;
   const items = Array.from(document.querySelectorAll<HTMLButtonElement>('.film-item'));
   const idxEl = document.getElementById('film-idx') as HTMLElement;
   const titleEl = document.getElementById('film-title') as HTMLElement;
   const regionEl = document.getElementById('film-region') as HTMLElement;
   const altEl = document.getElementById('film-alt') as HTMLElement;
   const resEl = document.getElementById('film-res') as HTMLElement;
+  const osdStateEl = document.getElementById('film-osd-state') as HTMLElement;
+  const osdResEl = document.getElementById('film-osd-res') as HTMLElement;
+  const tcCurEl = document.getElementById('film-tc-cur') as HTMLElement;
+  const tcDurEl = document.getElementById('film-tc-dur') as HTMLElement;
+
+  const fmt = (t: number) => {
+    if (!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   const setState = (playing: boolean) => {
     ppBtn.dataset.state = playing ? 'playing' : 'paused';
+    screenEl.dataset.state = playing ? 'playing' : 'paused';
+    playlistEl.dataset.playing = playing ? 'true' : 'false';
+    osdStateEl.textContent = playing ? 'PLAY' : 'PAUSE';
   };
+
+  // Mitlaufender Timecode aus der echten Wiedergabe (rein anzeigend).
+  player.addEventListener('loadedmetadata', () => {
+    tcDurEl.textContent = fmt(player.duration);
+  });
+  player.addEventListener('timeupdate', () => {
+    tcCurEl.textContent = fmt(player.currentTime);
+  });
 
   // Direkt nach einem src-Wechsel oder beim ersten Anzeigen stehen noch keine
   // Frames bereit → play() wird abgewiesen. Dann einmalig auf 'canplay' warten
@@ -350,6 +571,10 @@ const pad = (n: number) => String(n).padStart(2, '0');
     regionEl.textContent = d.region ?? '';
     altEl.textContent = d.alt ?? '';
     resEl.textContent = d.res ?? '';
+    // Kompaktes Screen-OSD ("4K · 30 FPS" → "4K · 30"), Timecode zurücksetzen
+    osdResEl.textContent = (d.res ?? '').replace(/\s*FPS\s*$/i, '').trim() || '—';
+    tcCurEl.textContent = '00:00';
+    tcDurEl.textContent = '00:00';
     items.forEach((it) => it.setAttribute('aria-current', it === btn ? 'true' : 'false'));
     if (autoplay) tryPlay();
   }
