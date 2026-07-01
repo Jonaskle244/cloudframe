@@ -69,9 +69,15 @@ const pad = (n: number) => String(n).padStart(2, '0');
         </div>
       </div>
 
-      <ul class="films-playlist">
+      <div class="films-rail">
+        <p class="films-rail__head reveal" style="--d:0.4s">
+          <span>Aufnahmen</span>
+          <span class="films-rail__count">{pad(films.length)}</span>
+        </p>
+
+        <ul class="films-playlist">
         {films.map((f, i) => (
-          <li class="reveal" style={`--d:${0.42 + i * 0.07}s`}>
+          <li class="reveal" style={`--d:${0.46 + i * 0.07}s`}>
             <button
               class="film-item"
               type="button"
@@ -80,6 +86,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
               data-region={f.region}
               data-alt={f.altitude}
               data-res={f.resolution}
+              data-caption={f.caption}
               data-idx={pad(i + 1)}
               aria-current={i === 0 ? 'true' : 'false'}
             >
@@ -94,7 +101,30 @@ const pad = (n: number) => String(n).padStart(2, '0');
             </button>
           </li>
         ))}
-      </ul>
+        </ul>
+
+        <div class="films-now reveal" style="--d:0.7s">
+          <p class="films-now__kicker">Now Playing</p>
+          <p class="films-now__caption" id="film-caption">{first.caption}</p>
+        </div>
+
+        <div class="films-railhud reveal" style="--d:0.82s" aria-hidden="true">
+          <span class="films-railhud__reticle">
+            <span class="films-railhud__ring"></span>
+            <span class="films-railhud__dot"></span>
+          </span>
+          <span class="films-railhud__readout">
+            <span class="films-railhud__row">
+              <span class="films-railhud__k">Signal</span>
+              <span class="films-railhud__v" id="film-signal">Standby</span>
+            </span>
+            <span class="films-railhud__row">
+              <span class="films-railhud__k">Gesamt</span>
+              <span class="films-railhud__v" id="film-total">--:--</span>
+            </span>
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -265,9 +295,36 @@ const pad = (n: number) => String(n).padStart(2, '0');
     white-space: nowrap;
   }
 
+  /* ── Rechte Cockpit-Leiste ────────────────────────────────── */
+  .films-rail {
+    flex: 0 0 clamp(240px, 26vw, 320px);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-self: stretch;
+  }
+
+  .films-rail__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .films-rail__count {
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    color: var(--color-text);
+  }
+
   /* ── Playlist ─────────────────────────────────────────────── */
   .films-playlist {
-    flex: 0 0 clamp(220px, 24vw, 300px);
     list-style: none;
     display: flex;
     flex-direction: column;
@@ -320,6 +377,101 @@ const pad = (n: number) => String(n).padStart(2, '0');
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--color-text-muted);
+  }
+
+  /* ── Now-Playing-Caption ──────────────────────────────────── */
+  .films-now {
+    margin-top: auto; /* schiebt Caption + HUD an den unteren Rand der Rail */
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .films-now__kicker {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 0.55rem;
+  }
+
+  .films-now__caption {
+    font-family: var(--font-sans);
+    font-size: 0.98rem;
+    line-height: 1.45;
+    color: var(--color-text);
+    max-width: none;
+  }
+
+  /* ── Ambient-HUD-Fuß ──────────────────────────────────────── */
+  .films-railhud {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding-top: 0.9rem;
+  }
+
+  .films-railhud__reticle {
+    position: relative;
+    flex: none;
+    width: 34px;
+    height: 34px;
+  }
+
+  .films-railhud__ring {
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid var(--color-border);
+    border-top-color: var(--color-text-muted);
+    border-radius: 50%;
+    animation: railReticle 3.6s ease-in-out infinite;
+  }
+
+  .films-railhud__dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    transform: translate(-50%, -50%);
+    animation: railDot 2.4s ease-in-out infinite;
+  }
+
+  @keyframes railReticle {
+    0%, 100% { transform: rotate(0deg); opacity: 0.7; }
+    50%       { transform: rotate(180deg); opacity: 1; }
+  }
+  @keyframes railDot {
+    0%, 100% { opacity: 0.35; transform: translate(-50%, -50%) scale(1); }
+    50%       { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+  }
+
+  .films-railhud__readout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+  }
+
+  .films-railhud__row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+
+  .films-railhud__k {
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    min-width: 3.6em;
+  }
+
+  .films-railhud__v {
+    letter-spacing: 0.1em;
+    color: var(--color-text);
   }
 
   /* ── Intro-Reveal (feuert bei jedem View-Öffnen: display none→block) ── */
@@ -490,7 +642,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
     }
     .films-reticle__ring,
     .films-osd__dot,
-    .film-item__eq span {
+    .film-item__eq span,
+    .films-railhud__ring,
+    .films-railhud__dot {
       animation: none;
     }
     .film-item:hover { transform: none; }
@@ -499,13 +653,16 @@ const pad = (n: number) => String(n).padStart(2, '0');
   /* ── Responsive ───────────────────────────────────────────── */
   @media (max-width: 768px) {
     .films-stage { flex-direction: column; }
-    .films-playlist {
+    .films-rail {
       flex: none;
       width: 100%;
+    }
+    .films-playlist {
       flex-direction: row;
       overflow-x: auto;
     }
     .film-item { min-width: 180px; }
+    .films-now { margin-top: 0; }
   }
 </style>
 
@@ -524,6 +681,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
   const osdResEl = document.getElementById('film-osd-res') as HTMLElement;
   const tcCurEl = document.getElementById('film-tc-cur') as HTMLElement;
   const tcDurEl = document.getElementById('film-tc-dur') as HTMLElement;
+  const captionEl = document.getElementById('film-caption') as HTMLElement;
+  const signalEl = document.getElementById('film-signal') as HTMLElement;
+  const totalEl = document.getElementById('film-total') as HTMLElement;
 
   const fmt = (t: number) => {
     if (!isFinite(t) || t < 0) t = 0;
@@ -537,7 +697,31 @@ const pad = (n: number) => String(n).padStart(2, '0');
     screenEl.dataset.state = playing ? 'playing' : 'paused';
     playlistEl.dataset.playing = playing ? 'true' : 'false';
     osdStateEl.textContent = playing ? 'PLAY' : 'PAUSE';
+    signalEl.textContent = playing ? 'Live' : 'Standby';
   };
+
+  // Gesamtlaufzeit aller Clips: Metadaten (moov-Atom) einmalig laden und summieren.
+  (() => {
+    const srcs = items.map((it) => it.dataset.src).filter(Boolean) as string[];
+    if (!srcs.length) return;
+    let total = 0;
+    let counted = 0;
+    const done = () => {
+      if (++counted === srcs.length && total > 0) totalEl.textContent = fmt(total);
+    };
+    srcs.forEach((src) => {
+      const probe = document.createElement('video');
+      probe.preload = 'metadata';
+      probe.muted = true;
+      probe.addEventListener('loadedmetadata', () => {
+        if (isFinite(probe.duration)) total += probe.duration;
+        probe.removeAttribute('src');
+        done();
+      }, { once: true });
+      probe.addEventListener('error', done, { once: true });
+      probe.src = src;
+    });
+  })();
 
   // Mitlaufender Timecode aus der echten Wiedergabe (rein anzeigend).
   player.addEventListener('loadedmetadata', () => {
@@ -573,6 +757,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     resEl.textContent = d.res ?? '';
     // Kompaktes Screen-OSD ("4K · 30 FPS" → "4K · 30"), Timecode zurücksetzen
     osdResEl.textContent = (d.res ?? '').replace(/\s*FPS\s*$/i, '').trim() || '—';
+    if (d.caption) captionEl.textContent = d.caption;
     tcCurEl.textContent = '00:00';
     tcDurEl.textContent = '00:00';
     items.forEach((it) => it.setAttribute('aria-current', it === btn ? 'true' : 'false'));

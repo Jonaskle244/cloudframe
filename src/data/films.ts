@@ -6,6 +6,8 @@ export interface Film {
   src: string;
   altitude?: string;
   resolution?: string;
+  /** Kurze atmosphärische Zeile fürs Now-Playing-Panel. PLATZHALTER — von Jonas nachfeilen. */
+  caption?: string;
 }
 
 export const films: Film[] = [
@@ -16,6 +18,7 @@ export const films: Film[] = [
     src: '/videos/oetz-talflug-1080p-crf26.mp4',
     altitude: '~2.700 m NN',
     resolution: '4K · 30 FPS',
+    caption: 'Hoch über dem Ötztal — stiller Gletscherwind, kein Mensch weit und breit.',
   },
   {
     id: 'prag',
@@ -24,6 +27,7 @@ export const films: Film[] = [
     src: '/videos/prag-tower-1080p-crf26.mp4',
     altitude: '~350 m NN',
     resolution: '4K · 30 FPS',
+    caption: 'Ein ruhiger Bogen über die Dächer — der Aussichtsturm zum Greifen nah.',
   },
   {
     id: 'desenberg',
@@ -32,5 +36,6 @@ export const films: Film[] = [
     src: '/videos/hero-desenberg-1080p-crf26.mp4',
     altitude: '~378 m NN',
     resolution: '4K · 30 FPS',
+    caption: 'Der einzelne Basaltkegel in der Börde — ein langsam gezogener Kreis.',
   },
 ];
