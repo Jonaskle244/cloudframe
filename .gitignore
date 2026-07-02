@@ -24,10 +24,11 @@ pnpm-debug.log*
 # local Codex/Claude runtime config
 .claude/
 
-# source/intermediate video files; keep only the web-ready assets referenced by the app
-public/videos/*.mov
-public/videos/hero-desenberg.mp4
-public/videos/hero-desenberg-1080p.mp4
+# Videos gehören nicht ins Repo (GitHub 100 MB, Cloudflare Pages 25 MiB/Datei).
+# Web-Clips liegen lokal auf der Platte und in Prod im Cloudflare-R2-Bucket.
+# README.md im Ordner bleibt versioniert.
+public/videos/*
+!public/videos/README.md
 
 # IDE
 .vscode/
