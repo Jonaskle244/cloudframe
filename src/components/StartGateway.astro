@@ -11,6 +11,8 @@
  * (IntersectionObserver), und werden gestaffelt eingeblendet.
  */
 
+import { videoUrl } from '../lib/video';
+
 interface Gate {
   view: 'karte' | 'filme' | 'hardware';
   idx: string;
@@ -27,14 +29,14 @@ const gates: Gate[] = [
     idx: '02',
     label: 'Karte',
     blurb: '8 Orte in Deutschland & Europa — Live-Sucher mit echten Koordinaten.',
-    media: { kind: 'video', src: '/videos/oetz-talflug-1080p-crf26.mp4' },
+    media: { kind: 'video', src: videoUrl('oetz-talflug-1080p-crf26.mp4') },
   },
   {
     view: 'filme',
     idx: '03',
     label: 'Filme',
     blurb: 'Cinematische Querformat-Clips. Ruhige, komponierte Flüge.',
-    media: { kind: 'video', src: '/videos/prag-tower-1080p-crf26.mp4' },
+    media: { kind: 'video', src: videoUrl('prag-tower-1080p-crf26.mp4') },
   },
   {
     view: 'hardware',

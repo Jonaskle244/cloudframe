@@ -7,6 +7,7 @@ import FilmsView from '../components/FilmsView.astro';
 import HardwareView from '../components/HardwareView.astro';
 import DroneFlyby from '../components/DroneFlyby.astro';
 import StartGateway from '../components/StartGateway.astro';
+import { videoUrl } from '../lib/video';
 ---
 
 <Layout>
@@ -14,7 +15,7 @@ import StartGateway from '../components/StartGateway.astro';
 
   <main>
     <section class="view view--start is-active" data-view="start">
-      <ScrollVideo src="/videos/soelden-berg-1080p-crf26.mp4" scrollMultiplier={3} smoothing={0.12}>
+      <ScrollVideo src={videoUrl('soelden-berg-1080p-crf26.mp4')} scrollMultiplier={3} smoothing={0.12}>
         <div class="hero-content">
           <div class="hero-hud" aria-hidden="true">
             <span class="hud-corner hud-corner--tl"></span>

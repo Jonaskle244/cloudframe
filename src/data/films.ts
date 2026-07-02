@@ -1,3 +1,5 @@
+import { videoUrl } from '../lib/video';
+
 export interface Film {
   id: string;
   title: string;
@@ -15,7 +17,7 @@ export const films: Film[] = [
     id: 'vent',
     title: 'Vent',
     region: 'Tirol, Österreich',
-    src: '/videos/oetz-talflug-1080p-crf26.mp4',
+    src: videoUrl('oetz-talflug-1080p-crf26.mp4'),
     altitude: '~2.700 m NN',
     resolution: '4K · 30 FPS',
     caption: 'Hoch über dem Ötztal — stiller Gletscherwind, kein Mensch weit und breit.',
@@ -24,7 +26,7 @@ export const films: Film[] = [
     id: 'prag',
     title: 'Prag',
     region: 'Tschechien',
-    src: '/videos/prag-tower-1080p-crf26.mp4',
+    src: videoUrl('prag-tower-1080p-crf26.mp4'),
     altitude: '~350 m NN',
     resolution: '4K · 30 FPS',
     caption: 'Ein ruhiger Bogen über die Dächer — der Aussichtsturm zum Greifen nah.',
@@ -33,7 +35,7 @@ export const films: Film[] = [
     id: 'desenberg',
     title: 'Desenberg',
     region: 'Warburg, Deutschland',
-    src: '/videos/hero-desenberg-1080p-crf26.mp4',
+    src: videoUrl('hero-desenberg-1080p-crf26.mp4'),
     altitude: '~378 m NN',
     resolution: '4K · 30 FPS',
     caption: 'Der einzelne Basaltkegel in der Börde — ein langsam gezogener Kreis.',
