@@ -132,6 +132,14 @@ const mimeType = type ?? guessMime(src);
       height: 100vh;
     }
   }
+
+  /* Mobile: kein langer Scroll-Pin. Section = eine Bildschirmhöhe, das Video
+     läuft als stummer Auto-Loop (Scroll-Scrubbing rendert auf iOS nicht). */
+  @media (max-width: 768px) {
+    .scroll-video {
+      height: 100vh;
+    }
+  }
 </style>
 
 <script>
@@ -158,6 +166,23 @@ const mimeType = type ?? guessMime(src);
     sections.forEach((el) => {
       const video = el.querySelector<HTMLVideoElement>('.scroll-video__media');
       if (!video) return;
+
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+      // Mobile: iOS/Safari rendert per currentTime „gescrubbte" Frames nicht.
+      // Deshalb kein Scroll-Binding, sondern ein stummer Auto-Loop (echtes Bewegtbild).
+      if (isMobile && !prefersReduced) {
+        video.loop = true;
+        video.muted = true;
+        const tryPlay = () => { void video.play().catch(() => {}); };
+        if (video.readyState >= 2) tryPlay();
+        else video.addEventListener('canplay', tryPlay, { once: true });
+        return;
+      }
+
+      // Reduced Motion: Standbild — das Poster bleibt sichtbar, kein Scrubbing.
+      if (prefersReduced) return;
 
       const smoothing = parseFloat(el.dataset.smoothing ?? '0.12');
 
