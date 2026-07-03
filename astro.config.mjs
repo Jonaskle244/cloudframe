@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://cloudframe.example',
+  site: 'https://cloudframe.codemantix.com',
   // Keep Astro 5/6 whitespace behavior after the Astro 7 upgrade.
   compressHTML: true,
   server: {
