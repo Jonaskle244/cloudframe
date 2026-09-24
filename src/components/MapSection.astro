@@ -1,4 +1,5 @@
 ---
+import TerrainFlight from "./TerrainFlight.astro";
 // MapSection.astro — Interaktive Locations-Karte
 ---
 
@@ -13,7 +14,7 @@
 
     <div class="map-layout">
       <div class="map-wrap" id="map-wrap">
-        <svg id="location-map" role="img" aria-label="Karte mit Drohnen-Locations in Europa"></svg>
+        <svg id="location-map" role="group" aria-label="Karte mit Drohnen-Locations in Europa"></svg>
         <!-- Sucher-Eckwinkel: rahmt den Viewport wie ein Kamera-HUD -->
         <div class="map-hud" aria-hidden="true">
           <span class="hud-corner hud-tl"></span>
@@ -71,6 +72,7 @@
 
           <!-- Textinfos -->
           <div class="card-info">
+            <button class="terrain-entry" id="terrain-entry">Gelände-Anflug starten ↗</button>
             <p class="card-idx" id="card-idx">01</p>
             <h3 class="card-name" id="card-name">—</h3>
             <p class="card-region" id="card-region">—</p>
@@ -92,6 +94,13 @@
   </div>
 </section>
 
+<TerrainFlight />
+
+<style>
+  .terrain-entry { width:100%; padding:.8rem 1rem; margin-bottom:1.2rem; border:1px solid var(--color-accent); border-radius:3px; background:var(--color-accent); color:white; font:inherit; font-size:.8rem; cursor:pointer; }
+  .terrain-entry:hover { background:#1d4ed8; }
+  .terrain-entry:focus-visible { outline:2px solid var(--color-accent); outline-offset:4px; }
+</style>
 <script>
   import * as d3 from 'd3';
   import { feature } from 'topojson-client';
@@ -185,7 +194,24 @@
   // Das Idle-HUD spiegelt die Live-Koordinaten unter dem Cursor (s. initMap).
   // Ohne Cursor auf der Karte bleiben die Zahlen stehen — kein Durchlaufen.
 
+  document.addEventListener("cloudframe:view", (event) => {
+    if ((event as CustomEvent).detail.view !== "karte") {
+      cardVideoEl.pause();
+      if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = undefined; }
+    } else {
+      if (cardVideoEl.getAttribute("src")) void cardVideoEl.play().catch(() => {});
+      galleryPlay();
+    }
+  });
+  let selectedLocation: Location | undefined;
+  document.getElementById("terrain-entry")!.addEventListener("click", () => {
+    if (!selectedLocation) return;
+    cardVideoEl.pause();
+    document.dispatchEvent(new CustomEvent("cloudframe:terrain", { detail: { id: selectedLocation.id } }));
+  });
+
   function showCard(loc: Location) {
+    selectedLocation = loc;
     const empty  = document.getElementById('card-empty')!;
     const filled = document.getElementById('card-filled')!;
 
@@ -224,6 +250,7 @@
     } else if (loc.portraitImage) {
       galleryStop();
       cardImgEl.src             = loc.portraitImage;
+      cardImgEl.alt = `Drohnenaufnahme: ${loc.name}`;
       cardImgEl.style.display   = 'block';
       cardVideoEl.pause();
       cardVideoEl.removeAttribute('src');
@@ -307,6 +334,12 @@
       .data(locations)
       .join('g')
       .attr('class', 'pin-group')
+      .attr('tabindex', 0)
+      .attr('role', 'button')
+      .attr('aria-label', d => `${d.name} auswählen`)
+      .on('keydown', (event, d) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showCard(d); flyTo(d); }
+      })
       .attr('transform', (d) => {
         const [x, y] = projection(d.coords)!;
         return `translate(${x},${y})`;

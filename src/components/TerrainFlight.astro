@@ -1,0 +1,122 @@
+---
+---
+<dialog class="terrain-dialog" aria-labelledby="terrain-title">
+  <div class="terrain-top">
+    <div><p class="terrain-kicker">Cloudframe / Perspektivwechsel</p><h2 id="terrain-title">Gelände-Anflug</h2></div>
+    <button class="terrain-close" autofocus aria-label="Zurück zur Karte">Schließen <span aria-hidden="true">×</span></button>
+  </div>
+  <div class="terrain-stage">
+    <div class="terrain-canvas"></div>
+    <div class="terrain-media" hidden></div>
+    <span class="terrain-corner terrain-corner--tl" aria-hidden="true"></span>
+    <span class="terrain-corner terrain-corner--br" aria-hidden="true"></span>
+    <p class="terrain-coords"></p>
+    <p class="terrain-status" role="status">Gelände wird geladen …</p>
+  </div>
+  <div class="terrain-bottom">
+    <div><p class="terrain-region"></p><p class="terrain-help">Geländerelief mit verstärkten Höhen. Eigene Aufnahmen.</p></div>
+    <div class="terrain-actions"><button class="terrain-replay">Anflug wiederholen</button><button class="terrain-show">Aufnahme ansehen ↗</button></div>
+  </div>
+</dialog>
+
+<style>
+  .terrain-dialog { margin:auto; width:min(1120px, calc(100% - 2rem)); max-height:calc(100dvh - 2rem); padding:0; border:1px solid var(--color-border); border-radius:6px; color:var(--color-text); background:#fff; box-shadow:0 30px 100px #10203030; }
+  .terrain-dialog::backdrop { background:#18232e80; backdrop-filter:blur(8px); }
+  .terrain-top,.terrain-bottom { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1.4rem 1.8rem; }
+  .terrain-kicker,.terrain-coords,.terrain-status { font-family:var(--font-mono); font-size:.65rem; letter-spacing:.12em; text-transform:uppercase; }
+  .terrain-kicker { color:var(--color-text-muted); margin-bottom:.45rem; }
+  h2 { font-size:clamp(1.6rem,3vw,2.5rem); }
+  button { cursor:pointer; font:inherit; font-size:.8rem; border:1px solid var(--color-border); background:#fff; color:var(--color-text); padding:.7rem 1rem; border-radius:3px; }
+  button:hover { border-color:var(--color-accent); color:var(--color-accent); }
+  button:focus-visible { outline:2px solid var(--color-accent); outline-offset:4px; }
+  .terrain-close { border:0; white-space:nowrap; }
+  .terrain-close span { font-size:1.3rem; margin-left:.5rem; }
+  .terrain-stage { position:relative; height:clamp(280px,56vh,570px); overflow:hidden; background:radial-gradient(ellipse at 50% 42%,#fff 0%,#edf1f2 70%); border-block:1px solid var(--color-border); }
+  .terrain-canvas,.terrain-media { position:absolute; inset:0; }
+  .terrain-media { background:#14191c; }
+  .terrain-media :global(img),.terrain-media :global(video) { width:100%; height:100%; object-fit:contain; }
+  .terrain-corner { position:absolute; width:22px; height:22px; border:1px solid #2563eb70; pointer-events:none; }
+  .terrain-corner--tl { top:1.2rem; left:1.2rem; border-right:0; border-bottom:0; }
+  .terrain-corner--br { bottom:1.2rem; right:1.2rem; border-left:0; border-top:0; }
+  .terrain-coords { position:absolute; top:1.3rem; right:1.4rem; color:#526473; background:#ffffffde; padding:.3rem .5rem; }
+  .terrain-status { position:absolute; bottom:1.4rem; left:1.4rem; background:#ffffffeb; padding:.4rem .6rem; letter-spacing:.05em; }
+  .terrain-region { font-size:.85rem; font-weight:500; }
+  .terrain-help { font-size:.75rem; color:var(--color-text-muted); margin-top:.3rem; }
+  .terrain-actions { display:flex; gap:.5rem; }
+  .terrain-show { color:#fff; background:var(--color-accent); border-color:var(--color-accent); }
+  .terrain-show:hover { background:#1d4ed8; color:#fff; }
+  @media(max-width:600px) { .terrain-top,.terrain-bottom { padding:1rem; align-items:flex-start; } .terrain-bottom { flex-direction:column; } .terrain-actions { width:100%; } .terrain-actions button { flex:1; padding:.7rem .5rem; font-size:.72rem; } .terrain-coords { font-size:.5rem; } .terrain-close { padding:.4rem; font-size:.7rem; } }
+</style>
+
+<script>
+  import { locations, type Location } from '../data/locations';
+  const dialog = document.querySelector<HTMLDialogElement>('.terrain-dialog')!;
+  const canvas = dialog.querySelector<HTMLElement>('.terrain-canvas')!;
+  const media = dialog.querySelector<HTMLElement>('.terrain-media')!;
+  const status = dialog.querySelector<HTMLElement>('.terrain-status')!;
+  const show = dialog.querySelector<HTMLButtonElement>('.terrain-show')!;
+  let selected: Location;
+  let flight: { dispose(): void } | undefined;
+  let generation = 0;
+  let oldOverflow = '';
+  function clearMedia() {
+    media.querySelector('video')?.pause();
+    media.replaceChildren(); media.hidden = true;
+  }
+  async function launch() {
+    const token = ++generation;
+    flight?.dispose(); flight = undefined;
+    clearMedia(); canvas.hidden = false;
+    show.textContent = 'Aufnahme ansehen ↗';
+    status.textContent = 'Gelände wird geladen …';
+    try {
+      const { createTerrainFlight } = await import('../lib/terrain-flight');
+      if (token !== generation || !dialog.open) return;
+      const instance = await createTerrainFlight(canvas, selected.id, () => {
+        if (token === generation) status.textContent = 'Relief erkunden · ziehen und zoomen';
+      });
+      if (token !== generation || !dialog.open) { instance.dispose(); return; }
+      flight = instance;
+      status.textContent = 'Anflug · Geländerelief';
+    } catch {
+      if (token === generation) status.textContent = 'Gelände nicht verfügbar. Die Aufnahme kannst du direkt ansehen.';
+    }
+  }
+  document.addEventListener('cloudframe:terrain', (event) => {
+    const loc = locations.find(l => l.id === (event as CustomEvent).detail.id);
+    if (!loc) return;
+    selected = loc;
+    dialog.querySelector('#terrain-title')!.textContent = loc.name;
+    dialog.querySelector('.terrain-region')!.textContent = `${loc.region} · ${loc.altitude}`;
+    dialog.querySelector('.terrain-coords')!.textContent = `${loc.coords[1].toFixed(4)}° N / ${loc.coords[0].toFixed(4)}° E`;
+    oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.showModal();
+    void launch();
+  });
+  dialog.querySelector('.terrain-close')!.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => {
+    generation++; flight?.dispose(); flight = undefined; clearMedia();
+    document.body.style.overflow = oldOverflow;
+  });
+  document.addEventListener('cloudframe:view', () => { if (dialog.open) dialog.close(); });
+  dialog.querySelector('.terrain-replay')!.addEventListener('click', () => void launch());
+  show.addEventListener('click', () => {
+    if (!media.hidden) { void launch(); return; }
+    generation++; flight?.dispose(); flight = undefined; canvas.hidden = true;
+    clearMedia(); media.hidden = false;
+    if (selected.portraitVideo) {
+      const video = document.createElement('video');
+      video.src = selected.portraitVideo; video.controls = true; video.muted = true; video.playsInline = true;
+      video.addEventListener('error', () => { status.textContent = 'Aufnahme konnte nicht geladen werden.'; });
+      media.append(video); void video.play().catch(() => {});
+    } else {
+      const images = selected.gallery ?? [selected.portraitImage!];
+      const img = document.createElement('img'); img.src = images[0]; img.alt = `Drohnenaufnahme: ${selected.name}`;
+      img.addEventListener('error', () => { status.textContent = 'Aufnahme konnte nicht geladen werden.'; });
+      media.append(img);
+    }
+    status.textContent = 'Originalaufnahme / Cloudframe';
+    show.textContent = 'Zurück zum Relief';
+  });
+</script>

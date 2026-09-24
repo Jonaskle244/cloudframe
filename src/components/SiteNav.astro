@@ -18,6 +18,11 @@ import BrandMark from './BrandMark.astro';
     <BrandMark class="brand__mark" />
     <span class="brand__word">Cloudframe</span>
   </a>
+  <nav class="view-links" aria-label="Ansichten">
+    <a href="#karte" data-goto="karte">Karte</a>
+    <a href="#filme" data-goto="filme">Filme</a>
+    <a href="#hardware" data-goto="hardware">Hardware</a>
+  </nav>
 </header>
 
 <style>
@@ -30,6 +35,13 @@ import BrandMark from './BrandMark.astro';
     padding: clamp(1rem, 2.5vw, 1.75rem) clamp(1.25rem, 4vw, 4rem);
     pointer-events: none; /* nur die Wortmarke fängt Klicks */
   }
+
+  .view-links { margin-left:auto; pointer-events:auto; display:flex; gap:clamp(.6rem,2vw,1.5rem); padding:.45rem .8rem; border:1px solid currentColor; border-radius:4px; backdrop-filter:blur(16px); background:#ffffffb8; color:#111; }
+  .view-links a { color:inherit; font-family:var(--font-mono); font-size:.65rem; text-decoration:none; opacity:.6; }
+  .view-links a:hover,.view-links a[aria-current="page"] { opacity:1; }
+  .view-links a[aria-current="page"] { text-decoration:underline; text-underline-offset:5px; }
+  .site-header[data-theme="light"] .view-links { color:white; background:#11111168; border-color:#ffffff30; }
+  @media(max-width:480px) { .brand__word { display:none; } .view-links { padding:.4rem .65rem; } }
 
   .brand {
     pointer-events: auto;
@@ -84,6 +96,10 @@ import BrandMark from './BrandMark.astro';
       el.classList.toggle('is-active', el.dataset.view === name);
     });
 
+    document.querySelectorAll<HTMLElement>(".view-links [data-goto]").forEach(link => {
+      if (link.dataset.goto === name) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
     applyHeaderTheme();
     window.scrollTo(0, 0);
     if (updateHash) history.replaceState(null, '', `#${name}`);
