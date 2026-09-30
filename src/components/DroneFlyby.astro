@@ -20,6 +20,7 @@
     z-index: 150; /* über den Views, unter Menü-Overlay (200) und Header (300) */
     pointer-events: none;
     opacity: 0.92;
+    visibility: hidden;
   }
 </style>
 
@@ -104,6 +105,7 @@
       // Front (+z) entlang der Flugrichtung, leicht zur Kamera gedreht → 3/4-Ansicht
       drone.rotation.set(0.12, dir > 0 ? Math.PI / 2 - 0.5 : -Math.PI / 2 + 0.5, dir * -0.08);
       drone.visible = true;
+      canvas!.style.visibility = 'visible';
 
       flying = true;
       t0 = performance.now();
@@ -116,6 +118,8 @@
       cancelAnimationFrame(frame);
       frame = 0;
       renderer.clear();
+      // Leerlauf: Vollbild-Ebene aus dem Compositing nehmen (liegt sonst über dem Scroll-Video).
+      canvas!.style.visibility = 'hidden';
       schedule(18000 + wobble() * 16000); // 18–34 s Pause
     }
 

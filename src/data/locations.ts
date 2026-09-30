@@ -53,7 +53,7 @@ export const locations: Location[] = [
     coords: [10.9500, 47.1833],
     altitude: '~3.007 m NN',
     resolution: '4K · Hyperlapse',
-    portraitVideo: videoUrl('acherkogel-oetz-hyperlapse.mp4'),
+    portraitVideo: videoUrl('acherkogel-oetz-hyperlapse-web.mp4'),
   },
   {
     id: 'symi',
@@ -63,7 +63,7 @@ export const locations: Location[] = [
     coords: [27.8333, 36.5833],
     altitude: '~15 m NN',
     resolution: '4K · 30 FPS',
-    portraitVideo: videoUrl('insel-symi-rhodos.mp4'),
+    portraitVideo: videoUrl('insel-symi-rhodos-web.mp4'),
   },
   {
     id: 'rhodos',
